@@ -1,0 +1,492 @@
+# ScriptSmith
+## An Offline AI Writing Studio Built for Writers
+
+ScriptSmith is a standalone writing application designed to give writers the power of a professional word processor, combined with specialized writing tools and optional local AI assistance.
+
+The goal is simple:
+
+> Build the writing program writers actually want to use.
+
+ScriptSmith is intended to work **offline**, prioritize **privacy**, avoid requiring an ongoing subscription for core functionality, and provide specialized tools for writers that traditional word processors do not.
+
+---
+
+# 1. Core Philosophy
+
+ScriptSmith should be:
+
+- Offline-first
+- Private
+- Writer-focused
+- Fast
+- Reliable
+- Customizable
+- Free to use for its core functions
+- Designed around actual writing workflows
+- Capable of using local AI without requiring an internet connection
+
+The application should not require a cloud account simply to write a document.
+
+A writer should be able to:
+
+1. Open ScriptSmith.
+2. Create a document.
+3. Write.
+4. Save it locally.
+5. Close the application.
+6. Reopen it later.
+7. Continue exactly where they left off.
+
+---
+
+# 2. Primary Goal
+
+ScriptSmith should provide the functionality writers normally use Microsoft Word for, while adding tools specifically designed for:
+
+- Novelists
+- Short-story writers
+- Screenwriters
+- Poets
+- Essayists
+- Journalists
+- Bloggers
+- Students
+- Researchers
+- Independent authors
+
+---
+
+# 3. Word Processor
+
+The primary writing environment should include:
+
+- Rich text editing
+- Font selection
+- Font size
+- Bold
+- Italic
+- Underline
+- Strikethrough
+- Text color
+- Highlighting
+- Alignment
+- Indentation
+- Line spacing
+- Paragraph spacing
+- Lists
+- Headings
+- Page breaks
+- Find and replace
+- Undo/redo
+- Word count
+- Character count
+- Page count
+- Spell checking
+- Grammar assistance
+- Auto-save
+- Manual save
+- Document recovery
+
+---
+
+# 4. Writer-Specific Tools
+
+ScriptSmith should go beyond a traditional word processor.
+
+Possible built-in tools include:
+
+### Character Manager
+
+Track:
+
+- Character names
+- Ages
+- Appearance
+- Personality
+- Background
+- Relationships
+- Goals
+- Fears
+- Character arcs
+- Important scenes
+
+---
+
+### World Builder
+
+For fiction writers:
+
+- Locations
+- Countries
+- Cities
+- Buildings
+- Cultures
+- Religions
+- Governments
+- Historical events
+- Magic systems
+- Technology
+- Languages
+- Important objects
+
+---
+
+### Timeline
+
+Create visual timelines for:
+
+- Story events
+- Character histories
+- Multiple timelines
+- Flashbacks
+- Future events
+- Historical events
+
+---
+
+### Plot Planner
+
+Allow writers to organize:
+
+- Acts
+- Chapters
+- Scenes
+- Story beats
+- Conflicts
+- Subplots
+- Character arcs
+
+---
+
+### Chapter Manager
+
+Each manuscript can contain:
+
+- Chapters
+- Scenes
+- Notes
+- Research
+- Draft versions
+
+Writers should be able to reorder chapters through drag-and-drop.
+
+---
+
+# 5. Research Cabinet
+
+A built-in research area should allow writers to store:
+
+- Notes
+- Websites
+- PDFs
+- Images
+- Quotes
+- References
+- Character research
+- Historical research
+
+Research should remain associated with the project without interrupting the writing environment.
+
+---
+
+# 6. Writing Statistics
+
+Track:
+
+- Total words
+- Words today
+- Words this week
+- Words this month
+- Writing sessions
+- Average words per session
+- Writing time
+- Longest writing streak
+- Current writing streak
+- Words per minute
+
+Statistics should be available per:
+
+- Document
+- Project
+- Day
+- Week
+- Month
+- Year
+
+---
+
+# 7. Offline AI
+
+ScriptSmith's AI should be designed around **local processing**.
+
+The application should support compatible local AI models so that writers can use AI without sending their manuscripts to a cloud service.
+
+Potential AI tools:
+
+- Brainstorming
+- Character development
+- Plot brainstorming
+- Scene analysis
+- Continuity checking
+- Summarization
+- Research organization
+- Writing prompts
+- Tone analysis
+- Readability analysis
+- Rewriting assistance
+- Grammar suggestions
+- Spelling assistance
+- Dialogue analysis
+- Description analysis
+- Repetition detection
+
+AI should operate as an **assistant**, not as the owner of the writer's work.
+
+---
+
+# 8. AI Privacy Rule
+
+By default:
+
+**The manuscript stays on the user's computer.**
+
+No manuscript should be uploaded to a remote server unless the user explicitly chooses an online service.
+
+The application should clearly tell the user:
+
+- What AI model is running
+- Where it is running
+- What data it can access
+- Whether anything leaves the computer
+
+---
+
+# 9. Document Formats
+
+ScriptSmith should eventually support:
+
+### Import
+
+- `.docx`
+- `.txt`
+- `.rtf`
+- `.md`
+- `.html`
+- `.odt`
+
+### Export
+
+- `.docx`
+- `.pdf`
+- `.txt`
+- `.rtf`
+- `.md`
+- `.html`
+- `.odt`
+
+ScriptSmith's native project format should preserve all writer-specific information.
+
+---
+
+# 10. Manuscript Mode
+
+A dedicated manuscript mode should provide:
+
+- Book title
+- Author
+- Chapters
+- Scenes
+- Word counts
+- Chapter notes
+- Manuscript notes
+- Front matter
+- Back matter
+- Formatting presets
+- Export settings
+
+A manuscript should be treated as a **project**, not simply a giant document.
+
+---
+
+# 11. Writing Modes
+
+Possible modes:
+
+### Normal Document
+
+Traditional word-processing environment.
+
+### Manuscript
+
+Book/novel-focused workspace.
+
+### Distraction-Free
+
+Writing area takes over the screen.
+
+### Research
+
+Writing and research appear side-by-side.
+
+### Planning
+
+Characters, plot, timeline and notes become the primary workspace.
+
+### Editing
+
+Tools for revision and manuscript analysis.
+
+---
+
+# 12. Version History
+
+ScriptSmith should automatically preserve previous versions.
+
+Writers should be able to:
+
+- View previous versions
+- Compare versions
+- Restore versions
+- Name important drafts
+
+Example:
+
+`Novel Draft 1`
+
+`Novel Draft 2`
+
+`First Revision`
+
+`Final Revision`
+
+---
+
+# 13. Backup System
+
+The application should never rely on a single copy of a manuscript.
+
+Possible backup options:
+
+- Local automatic backups
+- External drive backups
+- User-selected backup folder
+- Project archive
+- Optional cloud backup
+
+Cloud backup should remain optional.
+
+---
+
+# 14. Writer Dashboard
+
+The home screen could display:
+
+- Recent projects
+- Current projects
+- Word-count goals
+- Today's progress
+- Writing streak
+- Recent documents
+- Quick New Document
+- Quick New Manuscript
+- Continue Writing
+
+---
+
+# 15. Customization
+
+Writers should be able to customize:
+
+- Fonts
+- Font sizes
+- Margins
+- Page colors
+- Writing background
+- Interface theme
+- Toolbar layout
+- Keyboard shortcuts
+- Paragraph spacing
+- Line spacing
+
+Possible themes:
+
+- Classic
+- Paper
+- Dark
+- Sepia
+- Forest
+- Night Writing
+- Typewriter
+
+---
+
+# 16. Keyboard Shortcuts
+
+ScriptSmith should support standard shortcuts while allowing customization.
+
+Examples:
+
+`Ctrl + N` — New document
+
+`Ctrl + O` — Open
+
+`Ctrl + S` — Save
+
+`Ctrl + Z` — Undo
+
+`Ctrl + Y` — Redo
+
+`Ctrl + F` — Find
+
+`Ctrl + H` — Replace
+
+`Ctrl + B` — Bold
+
+`Ctrl + I` — Italic
+
+`Ctrl + U` — Underline
+
+Shortcuts should be customizable.
+
+---
+
+# 17. Accessibility
+
+ScriptSmith should support:
+
+- Keyboard navigation
+- Screen readers
+- Adjustable interface size
+- Adjustable text size
+- High-contrast mode
+- Reduced motion
+- Accessible tooltips
+- Clear focus indicators
+
+---
+
+# 18. Project Architecture
+
+The application should be modular.
+
+Suggested major systems:
+
+```text
+ScriptSmith
+│
+├── Editor
+├── Documents
+├── Manuscripts
+├── Chapters
+├── Characters
+├── Worldbuilding
+├── Timeline
+├── Plotting
+├── Research
+├── Statistics
+├── AI
+├── Export
+├── Import
+├── Backup
+├── Settings
+└── Extensions
