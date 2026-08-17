@@ -1,0 +1,4 @@
+.page { flex: 1; width: min(900px, calc(100% - 80px)); margin: 28px auto; padding: 72px 82px; overflow: auto; background: #fffdf8; box-shadow: 0 2px 14px rgba(44,37,30,.16); outline: none; font-family: Georgia, 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; color: #211d19; }
+.page:focus { box-shadow: 0 2px 14px rgba(44,37,30,.16), 0 0 0 1px #a99478; }
+.page p { margin: 0 0 1em; }
+.page:empty::before { content: 'Begin writing…'; color: #b2a79a; pointer-events: none; }
