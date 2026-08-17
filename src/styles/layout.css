@@ -1,0 +1,20 @@
+.topbar { height: 58px; display: grid; grid-template-columns: 260px 1fr 260px; align-items: center; padding: 0 16px; background: #2d2925; color: #f5efe6; border-bottom: 1px solid #181613; }
+.brand { display: flex; gap: 10px; align-items: center; }
+.brand-mark { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid #b7a78e; border-radius: 50%; font-size: 18px; }
+.brand strong, .brand small { display: block; }
+.brand small { opacity: .7; font-size: 11px; }
+.document-title { text-align: center; }
+.document-title input { width: min(480px, 100%); border: 0; background: transparent; color: inherit; text-align: center; outline: none; font-size: 16px; }
+.top-actions { display: flex; justify-content: flex-end; gap: 7px; }
+.top-actions button { border: 1px solid #655d54; background: #3b3530; color: #f5efe6; padding: 6px 12px; border-radius: 4px; }
+.workspace { height: calc(100vh - 58px); display: grid; grid-template-columns: 190px 1fr; }
+.sidebar { display: flex; flex-direction: column; padding: 18px 12px; background: #b9ad9d; border-right: 1px solid #928777; }
+.sidebar h2 { margin: 0 8px 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .12em; }
+.side-button { text-align: left; border: 0; background: transparent; padding: 9px 10px; border-radius: 4px; color: #302b26; }
+.side-button:hover, .side-button.active { background: rgba(255,255,255,.35); }
+.sidebar-spacer { flex: 1; }
+.editor-area { min-width: 0; display: flex; flex-direction: column; }
+.toolbar { min-height: 46px; display: flex; align-items: center; gap: 5px; padding: 6px 12px; background: #eee8de; border-bottom: 1px solid #c2b7a8; }
+.toolbar button, .toolbar select { min-height: 30px; border: 1px solid #c9beaf; background: #faf7f1; color: #302b26; border-radius: 3px; padding: 3px 8px; }
+.toolbar-separator { width: 1px; height: 23px; background: #c8bdaf; margin: 0 4px; }
+.statusbar { display: flex; justify-content: space-between; padding: 6px 12px; font: 12px/1.2 Arial, sans-serif; background: #eee8de; border-top: 1px solid #c2b7a8; color: #655d54; }
