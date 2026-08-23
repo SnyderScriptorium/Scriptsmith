@@ -51,6 +51,7 @@ jobs:
           img.save(out, format="ICO", sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)])
           '@ | Set-Content create_icon.py
           python create_icon.py
+          if (-not (Test-Path src-tauri/icons/icon.ico)) { throw "icon.ico was not created" }
       - run: npm install
       - run: npm run tauri -- build
       - name: Upload Windows installers
