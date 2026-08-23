@@ -31,15 +31,26 @@ jobs:
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
-      - name: Create required Windows icon
+      - name: Create valid Windows icon
         shell: pwsh
         run: |
+          python -m pip install --quiet pillow
           New-Item -ItemType Directory -Force src-tauri/icons | Out-Null
-          $png = [Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
-          $ico = New-Object System.Collections.Generic.List[byte]
-          $ico.AddRange([byte[]](0,0,1,0,1,0,1,1,0,0,1,0,32,0,0,0,22,0,0,0))
-          $ico.AddRange($png)
-          [IO.File]::WriteAllBytes('src-tauri/icons/icon.ico', $ico.ToArray())
+          @'
+          from PIL import Image, ImageDraw
+          from pathlib import Path
+          out = Path("src-tauri/icons/icon.ico")
+          img = Image.new("RGBA", (256, 256), (0, 0, 0, 0))
+          d = ImageDraw.Draw(img)
+          d.rounded_rectangle((8, 8, 248, 248), radius=36, fill=(30, 30, 30, 255))
+          d.rectangle((48, 54, 208, 202), fill=(245, 245, 245, 255))
+          d.rectangle((64, 72, 192, 88), fill=(70, 70, 70, 255))
+          d.rectangle((64, 104, 176, 116), fill=(100, 100, 100, 255))
+          d.rectangle((64, 130, 192, 142), fill=(100, 100, 100, 255))
+          d.rectangle((64, 156, 160, 168), fill=(100, 100, 100, 255))
+          img.save(out, format="ICO", sizes=[(256,256),(128,128),(64,64),(48,48),(32,32),(16,16)])
+          '@ | Set-Content create_icon.py
+          python create_icon.py
       - run: npm install
       - run: npm run tauri -- build
       - name: Upload Windows installers
