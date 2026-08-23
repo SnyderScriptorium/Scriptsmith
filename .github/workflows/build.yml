@@ -7,6 +7,10 @@ on:
       - 'feature/**'
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   frontend:
@@ -41,3 +45,13 @@ jobs:
             src-tauri/target/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
           if-no-files-found: error
+      - name: Publish GitHub release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "ScriptSmith $TAG" --generate-notes
+          gh release upload "$TAG" src-tauri/target/release/bundle/nsis/*.exe src-tauri/target/release/bundle/msi/*.msi --clobber
