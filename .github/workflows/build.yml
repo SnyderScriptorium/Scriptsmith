@@ -2,12 +2,15 @@ name: ScriptSmith build
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - 'feature/**'
   pull_request:
     branches: [main]
 
 jobs:
-  build:
+  frontend:
+    name: Frontend build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,3 +20,24 @@ jobs:
           cache: npm
       - run: npm install
       - run: npm run build
+
+  windows:
+    name: Windows desktop build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - run: npm install
+      - run: npm run tauri -- build
+      - name: Upload Windows installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: scriptsmith-windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
