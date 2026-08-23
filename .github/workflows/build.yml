@@ -31,6 +31,15 @@ jobs:
         with:
           node-version: 22
       - uses: dtolnay/rust-toolchain@stable
+      - name: Create required Windows icon
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force src-tauri/icons | Out-Null
+          $png = [Convert]::FromBase64String('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=')
+          $ico = New-Object System.Collections.Generic.List[byte]
+          $ico.AddRange([byte[]](0,0,1,0,1,0,1,1,0,0,1,0,32,0,0,0,22,0,0,0))
+          $ico.AddRange($png)
+          [IO.File]::WriteAllBytes('src-tauri/icons/icon.ico', $ico.ToArray())
       - run: npm install
       - run: npm run tauri -- build
       - name: Upload Windows installers
