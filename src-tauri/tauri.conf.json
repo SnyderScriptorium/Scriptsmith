@@ -27,10 +27,10 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi"],
+    "icon": [],
     "category": "Productivity",
     "shortDescription": "Offline writing studio for writers",
     "longDescription": "ScriptSmith is a private, offline-first writing application built for writers.",
-    "resources": [],
-    "icon": []
+    "resources": []
   }
 }
