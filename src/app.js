@@ -15,8 +15,14 @@ export function initApp() {
     <main class="workspace">
       <aside class="sidebar">
         <h2>Workspace</h2>
-        <button class="side-button active">Writing</button><button class="side-button">Manuscript</button><button class="side-button">Characters</button><button class="side-button">Worldbuilding</button><button class="side-button">Timeline</button><button class="side-button">Research</button><button class="side-button">Statistics</button>
-        <div class="sidebar-spacer"></div><button class="side-button">Settings</button>
+        <button class="side-button active" data-view="writing">Writing</button>
+        <button class="side-button" data-view="manuscript">Manuscript</button>
+        <button class="side-button" data-view="characters">Characters</button>
+        <button class="side-button" data-view="worldbuilding">Worldbuilding</button>
+        <button class="side-button" data-view="timeline">Timeline</button>
+        <button class="side-button" data-view="research">Research</button>
+        <button class="side-button" data-view="statistics">Statistics</button>
+        <div class="sidebar-spacer"></div><button class="side-button" data-view="settings">Settings</button>
       </aside>
       <section class="editor-area">
         <div class="toolbar" aria-label="Formatting toolbar">
@@ -38,13 +44,40 @@ export function initApp() {
   const title = document.querySelector('#title');
   const status = document.querySelector('#save-status');
 
-  function markDirty() {
-    isDirty = true;
-    status.textContent = 'Unsaved changes';
-  }
+  function markDirty() { isDirty = true; status.textContent = 'Unsaved changes'; }
+  function updateStats(text) { document.querySelector('#stats').textContent = `${countWords(text)} words · ${countCharacters(text)} characters`; }
 
-  function updateStats(text) {
-    document.querySelector('#stats').textContent = `${countWords(text)} words · ${countCharacters(text)} characters`;
+  function showView(view, button) {
+    document.querySelectorAll('.side-button[data-view]').forEach(item => item.classList.toggle('active', item === button));
+    const views = {
+      writing: ['Writing', 'Your writing workspace is ready.'],
+      manuscript: ['Manuscript', 'Organize your manuscript here.'],
+      characters: ['Characters', 'Keep your characters and notes here.'],
+      worldbuilding: ['Worldbuilding', 'Build and organize your world here.'],
+      timeline: ['Timeline', 'Track story events and chronology here.'],
+      research: ['Research', 'Keep research notes and references here.'],
+      statistics: ['Statistics', 'View writing statistics here.'],
+      settings: ['Settings', 'ScriptSmith settings will live here.']
+    };
+    const [heading, message] = views[view] || views.writing;
+    if (view === 'writing') {
+      document.querySelector('.toolbar').hidden = false;
+      editor.hidden = false;
+      document.querySelector('.statusbar').hidden = false;
+      return;
+    }
+    document.querySelector('.toolbar').hidden = true;
+    editor.hidden = true;
+    document.querySelector('.statusbar').hidden = true;
+    let panel = document.querySelector('#workspace-panel');
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.id = 'workspace-panel';
+      panel.className = 'page workspace-panel';
+      document.querySelector('.editor-area').insertBefore(panel, document.querySelector('.statusbar'));
+    }
+    panel.hidden = false;
+    panel.innerHTML = `<h1>${heading}</h1><p>${message}</p>`;
   }
 
   async function save(saveAs = false) {
@@ -57,14 +90,9 @@ export function initApp() {
   async function autosave() {
     if (!isDirty || autosaveInProgress) return;
     autosaveInProgress = true;
-    try {
-      await saveAutosave(getCurrentDocument());
-      status.textContent = 'Autosaved';
-    } catch (error) {
-      console.warn('ScriptSmith autosave failed:', error);
-    } finally {
-      autosaveInProgress = false;
-    }
+    try { await saveAutosave(getCurrentDocument()); status.textContent = 'Autosaved'; }
+    catch (error) { console.warn('ScriptSmith autosave failed:', error); }
+    finally { autosaveInProgress = false; }
   }
 
   async function checkRecovery() {
@@ -73,20 +101,12 @@ export function initApp() {
       const recovered = await loadAutosave();
       if (!recovered) return;
       if (window.confirm(`ScriptSmith found a recovered copy of “${recovered.title || 'Untitled Document'}”. Restore it?`)) {
-        setCurrentDocument(recovered);
-        title.value = recovered.title || 'Untitled Document';
-        editor.innerHTML = recovered.content || '';
-        updateStats(editor.innerText);
-        isDirty = true;
-        status.textContent = 'Recovered — unsaved changes';
-      } else {
-        await clearAutosave();
-      }
-    } catch (error) {
-      console.warn('ScriptSmith recovery check failed:', error);
-    }
+        setCurrentDocument(recovered); title.value = recovered.title || 'Untitled Document'; editor.innerHTML = recovered.content || ''; updateStats(editor.innerText); isDirty = true; status.textContent = 'Recovered — unsaved changes';
+      } else await clearAutosave();
+    } catch (error) { console.warn('ScriptSmith recovery check failed:', error); }
   }
 
+  document.querySelectorAll('.side-button[data-view]').forEach(button => button.addEventListener('click', () => showView(button.dataset.view, button)));
   editor.addEventListener('input', () => { updateDocumentContent(editor.innerHTML); updateStats(editor.innerText); markDirty(); });
   title.addEventListener('input', () => { updateDocumentTitle(title.value); markDirty(); });
   document.querySelectorAll('[data-command]').forEach(button => button.addEventListener('click', () => { editor.focus(); document.execCommand(button.dataset.command, false); markDirty(); }));
@@ -95,22 +115,17 @@ export function initApp() {
 
   document.querySelector('#new').addEventListener('click', async () => {
     if (isDirty && !window.confirm('You have unsaved changes. Create a new document anyway?')) return;
-    const doc = createDocument(); setCurrentDocument(doc); clearCurrentPath(); await clearAutosave(); isDirty = false; title.value = doc.title; editor.innerHTML = ''; updateStats(''); status.textContent = 'Ready';
+    const doc = createDocument(); setCurrentDocument(doc); clearCurrentPath(); await clearAutosave(); isDirty = false; title.value = doc.title; editor.innerHTML = ''; updateStats(''); status.textContent = 'Ready'; showView('writing', document.querySelector('.side-button[data-view="writing"]'));
   });
   document.querySelector('#save').addEventListener('click', () => save(false));
   document.querySelector('#save-as').addEventListener('click', () => save(true));
   document.querySelector('#open').addEventListener('click', async () => {
     if (isDirty && !window.confirm('You have unsaved changes. Open another document anyway?')) return;
-    try { const doc = await openProject(); if (!doc) return; setCurrentDocument(doc); title.value = doc.title; editor.innerHTML = doc.content || ''; updateStats(editor.innerText); isDirty = false; await clearAutosave(); status.textContent = 'Opened'; }
+    try { const doc = await openProject(); if (!doc) return; setCurrentDocument(doc); title.value = doc.title; editor.innerHTML = doc.content || ''; updateStats(editor.innerText); isDirty = false; await clearAutosave(); status.textContent = 'Opened'; showView('writing', document.querySelector('.side-button[data-view="writing"]')); }
     catch (error) { status.textContent = `Open failed: ${error}`; }
   });
 
   setInterval(autosave, AUTOSAVE_INTERVAL);
   checkRecovery();
-
-  window.addEventListener('beforeunload', event => {
-    if (!isDirty) return;
-    event.preventDefault();
-    event.returnValue = '';
-  });
+  window.addEventListener('beforeunload', event => { if (!isDirty) return; event.preventDefault(); event.returnValue = ''; });
 }
