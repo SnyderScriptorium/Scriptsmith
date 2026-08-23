@@ -1,6 +1,8 @@
 import { createDocument, getCurrentDocument, setCurrentDocument, updateDocumentContent, updateDocumentTitle } from './document.js';
-import { saveProject, openProject, clearCurrentPath } from './filesystem.js';
+import { saveProject, openProject, clearCurrentPath, saveAutosave, loadAutosave, clearAutosave, hasAutosave } from './filesystem.js';
 import { countWords, countCharacters } from './statistics.js';
+
+const AUTOSAVE_INTERVAL = 10000;
 
 export function initApp() {
   const app = document.querySelector('#app');
@@ -31,6 +33,7 @@ export function initApp() {
   setCurrentDocument(createDocument());
   clearCurrentPath();
   let isDirty = false;
+  let autosaveInProgress = false;
   const editor = document.querySelector('#editor');
   const title = document.querySelector('#title');
   const status = document.querySelector('#save-status');
@@ -47,8 +50,41 @@ export function initApp() {
   async function save(saveAs = false) {
     try {
       const saved = await saveProject(getCurrentDocument(), saveAs);
-      if (saved) { isDirty = false; status.textContent = 'Saved'; }
+      if (saved) { isDirty = false; status.textContent = 'Saved'; await clearAutosave(); }
     } catch (error) { status.textContent = `Save failed: ${error}`; }
+  }
+
+  async function autosave() {
+    if (!isDirty || autosaveInProgress) return;
+    autosaveInProgress = true;
+    try {
+      await saveAutosave(getCurrentDocument());
+      status.textContent = 'Autosaved';
+    } catch (error) {
+      console.warn('ScriptSmith autosave failed:', error);
+    } finally {
+      autosaveInProgress = false;
+    }
+  }
+
+  async function checkRecovery() {
+    try {
+      if (!(await hasAutosave())) return;
+      const recovered = await loadAutosave();
+      if (!recovered) return;
+      if (window.confirm(`ScriptSmith found a recovered copy of “${recovered.title || 'Untitled Document'}”. Restore it?`)) {
+        setCurrentDocument(recovered);
+        title.value = recovered.title || 'Untitled Document';
+        editor.innerHTML = recovered.content || '';
+        updateStats(editor.innerText);
+        isDirty = true;
+        status.textContent = 'Recovered — unsaved changes';
+      } else {
+        await clearAutosave();
+      }
+    } catch (error) {
+      console.warn('ScriptSmith recovery check failed:', error);
+    }
   }
 
   editor.addEventListener('input', () => { updateDocumentContent(editor.innerHTML); updateStats(editor.innerText); markDirty(); });
@@ -59,15 +95,18 @@ export function initApp() {
 
   document.querySelector('#new').addEventListener('click', async () => {
     if (isDirty && !window.confirm('You have unsaved changes. Create a new document anyway?')) return;
-    const doc = createDocument(); setCurrentDocument(doc); clearCurrentPath(); isDirty = false; title.value = doc.title; editor.innerHTML = ''; updateStats(''); status.textContent = 'Ready';
+    const doc = createDocument(); setCurrentDocument(doc); clearCurrentPath(); await clearAutosave(); isDirty = false; title.value = doc.title; editor.innerHTML = ''; updateStats(''); status.textContent = 'Ready';
   });
   document.querySelector('#save').addEventListener('click', () => save(false));
   document.querySelector('#save-as').addEventListener('click', () => save(true));
   document.querySelector('#open').addEventListener('click', async () => {
     if (isDirty && !window.confirm('You have unsaved changes. Open another document anyway?')) return;
-    try { const doc = await openProject(); if (!doc) return; setCurrentDocument(doc); title.value = doc.title; editor.innerHTML = doc.content || ''; updateStats(editor.innerText); isDirty = false; status.textContent = 'Opened'; }
+    try { const doc = await openProject(); if (!doc) return; setCurrentDocument(doc); title.value = doc.title; editor.innerHTML = doc.content || ''; updateStats(editor.innerText); isDirty = false; await clearAutosave(); status.textContent = 'Opened'; }
     catch (error) { status.textContent = `Open failed: ${error}`; }
   });
+
+  setInterval(autosave, AUTOSAVE_INTERVAL);
+  checkRecovery();
 
   window.addEventListener('beforeunload', event => {
     if (!isDirty) return;
