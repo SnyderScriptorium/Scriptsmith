@@ -1,134 +1,24 @@
 import { getCurrentDocument } from './document.js';
-import { listLibraryDocuments, loadLibraryDocument } from './filesystem.js';
+import { listLibraryDocuments } from './filesystem.js';
+import { createBackup } from './backups.js';
 
 const UNIVERSAL_KEY = 'scriptsmith-universal-library';
 const PREF_KEY = 'scriptsmith-sprint1-9-preferences';
+const BACKUP_INTERVAL = 5 * 60 * 1000;
 
-function universal() {
-  try { return JSON.parse(localStorage.getItem(UNIVERSAL_KEY) || '{"characters":[],"locations":[],"timeline":[]}'); }
-  catch (_) { return { characters: [], locations: [], timeline: [] }; }
-}
-function saveUniversal(value) { localStorage.setItem(UNIVERSAL_KEY, JSON.stringify(value)); }
-function prefs() {
-  try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch (_) { return {}; }
-}
+function universal() { try { return JSON.parse(localStorage.getItem(UNIVERSAL_KEY) || '{"characters":[],"locations":[],"timeline":[]}'); } catch (_) { return { characters: [], locations: [], timeline: [] }; } }
+function prefs() { try { return JSON.parse(localStorage.getItem(PREF_KEY) || '{}'); } catch (_) { return {}; } }
 function savePrefs(value) { localStorage.setItem(PREF_KEY, JSON.stringify(value)); }
-function currentPrefs() {
-  const d = getCurrentDocument();
-  d.metadata = d.metadata || {};
-  d.metadata.manuscriptPreferences = d.metadata.manuscriptPreferences || {};
-  return d.metadata.manuscriptPreferences;
-}
-function toast(message, kind = 'success') {
-  let el = document.querySelector('#sprint19-toast');
-  if (!el) { el = document.createElement('div'); el.id = 'sprint19-toast'; document.body.appendChild(el); }
-  el.className = `sprint19-toast ${kind}`;
-  el.textContent = message;
-  el.hidden = false;
-  clearTimeout(el._timer);
-  el._timer = setTimeout(() => { el.hidden = true; }, 2400);
-}
-function markDirty() {
-  const status = document.querySelector('#save-status');
-  if (status) status.textContent = 'Unsaved changes';
-}
-
-function applyManuscriptPreferences() {
-  const editor = document.querySelector('#editor');
-  const toolbar = document.querySelector('#font');
-  const size = document.querySelector('#size');
-  const p = currentPrefs();
-  if (!editor) return;
-  if (p.fontFamily) editor.style.fontFamily = p.fontFamily;
-  if (p.fontSize) editor.style.fontSize = `${p.fontSize}px`;
-  if (p.lineHeight) editor.style.lineHeight = p.lineHeight;
-  if (toolbar && p.fontFamily) toolbar.value = p.fontFamily;
-  if (size && p.fontSize) size.value = String(p.fontSize);
-}
-
-function enhanceSettings(panel) {
-  if (!panel || panel.querySelector('.sprint19-settings')) return;
-  const p = currentPrefs();
-  const wrap = document.createElement('div');
-  wrap.className = 'sprint19-settings';
-  wrap.innerHTML = `<div class="sprint19-setting-card"><h2>Manuscript Preferences</h2><p>These settings belong to this manuscript, not every project.</p><div class="sprint19-setting-grid"><label>Writing font<select id="s19-font"><option>Georgia</option><option>Times New Roman</option><option>Garamond</option><option>Arial</option><option>Calibri</option><option>Palatino Linotype</option><option>Cambria</option><option>Book Antiqua</option></select></label><label>Writing size<select id="s19-size">${Array.from({length:56}, (_, i) => `<option>${i + 9}</option>`).join('')}</select></label><label>Line height<select id="s19-line"><option value="1.4">1.4</option><option value="1.5">1.5</option><option value="1.6">1.6</option><option value="1.8">1.8</option><option value="2">2.0</option></select></label></div></div>`;
-  panel.appendChild(wrap);
-  const font = wrap.querySelector('#s19-font'); const size = wrap.querySelector('#s19-size'); const line = wrap.querySelector('#s19-line');
-  font.value = p.fontFamily || 'Georgia'; size.value = String(p.fontSize || 12); line.value = String(p.lineHeight || 1.6);
-  const update = () => { Object.assign(p, { fontFamily: font.value, fontSize: Number(size.value), lineHeight: Number(line.value) }); savePrefs({ ...prefs(), [getCurrentDocument().id]: p }); applyManuscriptPreferences(); markDirty(); toast('Manuscript preferences updated'); };
-  font.onchange = update; size.onchange = update; line.onchange = update;
-}
-
-function addUniversalTimelineCard() {
-  const library = document.querySelector('.universal-library');
-  if (!library || document.querySelector('#universal-timeline')) return;
-  const card = document.createElement('button');
-  card.className = 'universal-card'; card.id = 'universal-timeline';
-  card.innerHTML = '<strong>Universal Timeline</strong><span>Events shared across all your stories</span>';
-  card.onclick = showUniversalTimeline;
-  library.appendChild(card);
-}
-
-async function showUniversalTimeline() {
-  const data = universal();
-  const docs = await listLibraryDocuments();
-  const events = [...(data.timeline || [])];
-  docs.forEach(doc => (doc.metadata?.timeline || []).forEach(event => events.push({ ...event, sourceTitle: doc.title || 'Untitled manuscript' })));
-  events.sort((a, b) => String(a.date || a.order || '').localeCompare(String(b.date || b.order || '')));
-  let modal = document.querySelector('#sprint19-timeline-modal');
-  if (!modal) { modal = document.createElement('div'); modal.id = 'sprint19-timeline-modal'; document.body.appendChild(modal); }
-  modal.innerHTML = `<div class="sprint19-modal-backdrop"><section class="sprint19-modal"><header><div><h2>Universal Timeline</h2><p>One chronological view across your ScriptSmith library.</p></div><button id="s19-close" class="theme-button">Close</button></header><div class="sprint19-timeline-list">${events.length ? events.map(e => `<article><time>${escapeHtml(e.date || 'Undated')}</time><div><strong>${escapeHtml(e.title || e.name || 'Untitled event')}</strong><span>${escapeHtml(e.description || e.summary || '')}${e.sourceTitle ? ` · ${escapeHtml(e.sourceTitle)}` : ''}</span></div></article>`).join('') : '<div class="feature-placeholder">No timeline events exist yet.</div>'}</div></section></div>`;
-  modal.hidden = false; modal.querySelector('#s19-close').onclick = () => { modal.hidden = true; };
-}
-
-function enhanceLibrarySearch() {
-  const section = document.querySelector('.library-section');
-  if (!section || document.querySelector('#sprint19-library-search')) return;
-  const heading = section.querySelector('.section-heading');
-  if (!heading) return;
-  const input = document.createElement('input');
-  input.id = 'sprint19-library-search'; input.className = 'sprint19-search'; input.placeholder = 'Search your library…'; input.setAttribute('aria-label', 'Search your library');
-  heading.appendChild(input);
-  input.oninput = () => { const q = input.value.trim().toLowerCase(); document.querySelectorAll('#library .project-card').forEach(card => { card.hidden = q && !card.innerText.toLowerCase().includes(q); }); };
-}
-
-function enhanceRecordView(panel) {
-  if (!panel || !panel.querySelector('.record-form') || panel.querySelector('.sprint19-edit')) return;
-  const form = panel.querySelector('.record-form');
-  const controls = [...form.querySelectorAll('input, textarea, select')];
-  controls.forEach(c => { c.readOnly = true; c.disabled = c.tagName === 'SELECT'; });
-  const button = document.createElement('button'); button.className = 'theme-button sprint19-edit'; button.textContent = 'Edit';
-  const header = panel.querySelector('.explorer-header');
-  if (header) header.querySelector('div')?.appendChild(button);
-  button.onclick = () => { controls.forEach(c => { c.readOnly = false; c.disabled = false; }); button.remove(); toast('Edit mode enabled'); };
-}
-
-function enhanceReadingMode(panel) {
-  if (!panel || panel.querySelector('.sprint19-reading')) return;
-  const title = panel.querySelector('.explorer-header h1');
-  if (!title || !/Characters|Locations/i.test(title.textContent || '')) return;
-  const button = document.createElement('button'); button.className = 'theme-button sprint19-reading'; button.textContent = 'Reading Mode';
-  panel.querySelector('.explorer-header')?.appendChild(button);
-  button.onclick = () => { panel.classList.toggle('sprint19-reader'); button.textContent = panel.classList.contains('sprint19-reader') ? 'Exit Reading Mode' : 'Reading Mode'; };
-}
-
+function currentPrefs() { const d = getCurrentDocument(); d.metadata = d.metadata || {}; d.metadata.manuscriptPreferences = d.metadata.manuscriptPreferences || {}; return d.metadata.manuscriptPreferences; }
+function toast(message, kind = 'success') { let el = document.querySelector('#sprint19-toast'); if (!el) { el = document.createElement('div'); el.id = 'sprint19-toast'; document.body.appendChild(el); } el.className = `sprint19-toast ${kind}`; el.textContent = message; el.hidden = false; clearTimeout(el._timer); el._timer = setTimeout(() => { el.hidden = true; }, 2400); }
+function markDirty() { const status = document.querySelector('#save-status'); if (status) status.textContent = 'Unsaved changes'; }
+function applyManuscriptPreferences() { const editor = document.querySelector('#editor'); const toolbar = document.querySelector('#font'); const size = document.querySelector('#size'); const p = currentPrefs(); if (!editor) return; if (p.fontFamily) editor.style.fontFamily = p.fontFamily; if (p.fontSize) editor.style.fontSize = `${p.fontSize}px`; if (p.lineHeight) editor.style.lineHeight = p.lineHeight; if (toolbar && p.fontFamily) toolbar.value = p.fontFamily; if (size && p.fontSize) size.value = String(p.fontSize); }
+function enhanceSettings(panel) { if (!panel || panel.querySelector('.sprint19-settings')) return; const p = currentPrefs(); const wrap = document.createElement('div'); wrap.className = 'sprint19-settings'; wrap.innerHTML = `<div class="sprint19-setting-card"><h2>Manuscript Preferences</h2><p>These settings belong to this manuscript, not every project.</p><div class="sprint19-setting-grid"><label>Writing font<select id="s19-font"><option>Georgia</option><option>Times New Roman</option><option>Garamond</option><option>Arial</option><option>Calibri</option><option>Palatino Linotype</option><option>Cambria</option><option>Book Antiqua</option></select></label><label>Writing size<select id="s19-size">${Array.from({length:56}, (_, i) => `<option>${i + 9}</option>`).join('')}</select></label><label>Line height<select id="s19-line"><option value="1.4">1.4</option><option value="1.5">1.5</option><option value="1.6">1.6</option><option value="1.8">1.8</option><option value="2">2.0</option></select></label></div></div>`; panel.appendChild(wrap); const font = wrap.querySelector('#s19-font'); const size = wrap.querySelector('#s19-size'); const line = wrap.querySelector('#s19-line'); font.value = p.fontFamily || 'Georgia'; size.value = String(p.fontSize || 12); line.value = String(p.lineHeight || 1.6); const update = () => { Object.assign(p, { fontFamily: font.value, fontSize: Number(size.value), lineHeight: Number(line.value) }); savePrefs({ ...prefs(), [getCurrentDocument().id]: p }); applyManuscriptPreferences(); markDirty(); toast('Manuscript preferences updated'); }; font.onchange = update; size.onchange = update; line.onchange = update; }
+function addUniversalTimelineCard() { const library = document.querySelector('.universal-library'); if (!library || document.querySelector('#universal-timeline')) return; const card = document.createElement('button'); card.className = 'universal-card'; card.id = 'universal-timeline'; card.innerHTML = '<strong>Universal Timeline</strong><span>Events shared across all your stories</span>'; card.onclick = showUniversalTimeline; library.appendChild(card); }
+async function showUniversalTimeline() { const data = universal(); const docs = await listLibraryDocuments(); const events = [...(data.timeline || [])]; docs.forEach(doc => (doc.metadata?.timeline || []).forEach(event => events.push({ ...event, sourceTitle: doc.title || 'Untitled manuscript' }))); events.sort((a, b) => String(a.date || a.order || '').localeCompare(String(b.date || b.order || ''))); let modal = document.querySelector('#sprint19-timeline-modal'); if (!modal) { modal = document.createElement('div'); modal.id = 'sprint19-timeline-modal'; document.body.appendChild(modal); } modal.innerHTML = `<div class="sprint19-modal-backdrop"><section class="sprint19-modal"><header><div><h2>Universal Timeline</h2><p>One chronological view across your ScriptSmith library.</p></div><button id="s19-close" class="theme-button">Close</button></header><div class="sprint19-timeline-list">${events.length ? events.map(e => `<article><time>${escapeHtml(e.date || 'Undated')}</time><div><strong>${escapeHtml(e.title || e.name || 'Untitled event')}</strong><span>${escapeHtml(e.description || e.summary || '')}${e.sourceTitle ? ` · ${escapeHtml(e.sourceTitle)}` : ''}</span></div></article>`).join('') : '<div class="feature-placeholder">No timeline events exist yet.</div>'}</div></section></div>`; modal.hidden = false; modal.querySelector('#s19-close').onclick = () => { modal.hidden = true; }; }
+function enhanceLibrarySearch() { const section = document.querySelector('.library-section'); if (!section || document.querySelector('#sprint19-library-search')) return; const heading = section.querySelector('.section-heading'); if (!heading) return; const input = document.createElement('input'); input.id = 'sprint19-library-search'; input.className = 'sprint19-search'; input.placeholder = 'Search your library…'; input.setAttribute('aria-label', 'Search your library'); heading.appendChild(input); input.oninput = () => { const q = input.value.trim().toLowerCase(); document.querySelectorAll('#library .project-card').forEach(card => { card.hidden = q && !card.innerText.toLowerCase().includes(q); }); }; }
+function enhanceRecordView(panel) { if (!panel || !panel.querySelector('.record-form') || panel.querySelector('.sprint19-edit')) return; const form = panel.querySelector('.record-form'); const controls = [...form.querySelectorAll('input, textarea, select')]; controls.forEach(c => { c.readOnly = true; c.disabled = c.tagName === 'SELECT'; }); const button = document.createElement('button'); button.className = 'theme-button sprint19-edit'; button.textContent = 'Edit'; const header = panel.querySelector('.explorer-header'); if (header) header.querySelector('div')?.appendChild(button); button.onclick = () => { controls.forEach(c => { c.readOnly = false; c.disabled = false; }); button.remove(); toast('Edit mode enabled'); }; }
+function enhanceReadingMode(panel) { if (!panel || panel.querySelector('.sprint19-reading')) return; const title = panel.querySelector('.explorer-header h1'); if (!title || !/Characters|Locations/i.test(title.textContent || '')) return; const button = document.createElement('button'); button.className = 'theme-button sprint19-reading'; button.textContent = 'Reading Mode'; panel.querySelector('.explorer-header')?.appendChild(button); button.onclick = () => { panel.classList.toggle('sprint19-reader'); button.textContent = panel.classList.contains('sprint19-reader') ? 'Exit Reading Mode' : 'Reading Mode'; }; }
 function escapeHtml(value = '') { return String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-export function installSprint19() {
-  window.addEventListener('scriptsmith:saved', () => toast('Saved to your ScriptSmith library'));
-  const observer = new MutationObserver(() => {
-    addUniversalTimelineCard();
-    enhanceLibrarySearch();
-    applyManuscriptPreferences();
-    const panel = document.querySelector('#workspace-panel');
-    if (panel) {
-      enhanceSettings(panel);
-      enhanceRecordView(panel);
-      enhanceReadingMode(panel);
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-  addUniversalTimelineCard();
-  enhanceLibrarySearch();
-  window.addEventListener('scriptsmith:document-opened', applyManuscriptPreferences);
-}
+async function runAutomaticBackup() { try { const doc = getCurrentDocument(); if (doc) { await createBackup(doc); } } catch (_) {} }
+export function installSprint19() { window.addEventListener('scriptsmith:saved', () => toast('Saved to your ScriptSmith library')); const observer = new MutationObserver(() => { addUniversalTimelineCard(); enhanceLibrarySearch(); applyManuscriptPreferences(); const panel = document.querySelector('#workspace-panel'); if (panel) { enhanceSettings(panel); enhanceRecordView(panel); enhanceReadingMode(panel); } }); observer.observe(document.body, { childList: true, subtree: true }); addUniversalTimelineCard(); enhanceLibrarySearch(); window.setInterval(runAutomaticBackup, BACKUP_INTERVAL); }
