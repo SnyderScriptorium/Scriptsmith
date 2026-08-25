@@ -7,9 +7,11 @@ import './styles/author-studio-2.css';
 import { initApp } from './app.js';
 import { installSprint19 } from './sprint1-9.js';
 import { installTimelineInteractions } from './timeline-interactions.js';
+import { installFinalFixes } from './final-fixes.js';
 import './sprint2-polish.js';
 import './author-studio-2.js';
 
 initApp();
 installSprint19();
 installTimelineInteractions();
+installFinalFixes();
