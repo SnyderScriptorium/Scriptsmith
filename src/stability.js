@@ -1,4 +1,5 @@
 import { getSettings, updateSettings, resetSettings } from '../settings.js';
+import { getCurrentDocument } from './document.js';
 
 const UNIVERSAL_KEY = 'scriptsmith-universal-library';
 
@@ -10,150 +11,122 @@ function readUniversal() {
       locations: Array.isArray(value.locations) ? value.locations : [],
       timeline: Array.isArray(value.timeline) ? value.timeline : []
     };
-  } catch {
-    return { characters: [], locations: [], timeline: [] };
-  }
+  } catch { return { characters: [], locations: [], timeline: [] }; }
 }
+function writeUniversal(value) { localStorage.setItem(UNIVERSAL_KEY, JSON.stringify(value)); }
+function esc(value = '') { return String(value).replace(/[&<>\"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;' }[c])); }
+function home() { document.querySelector('#collection-shell')?.setAttribute('hidden',''); document.querySelector('#editor-shell')?.setAttribute('hidden',''); const h=document.querySelector('#home'); if(h)h.hidden=false; }
+function shellFor(kind='collection') { const h=document.querySelector('#home'); const c=document.querySelector('#collection-shell'); const e=document.querySelector('#editor-shell'); if(h)h.hidden=true; if(kind==='editor'){if(c)c.hidden=true;if(e)e.hidden=false;return e;} if(e)e.hidden=true;if(c)c.hidden=false;return c; }
+function notify(message, ok=true) { const n=document.createElement('div'); n.className='ss-toast'; n.textContent=message; n.dataset.ok=ok?'1':'0'; document.body.appendChild(n); setTimeout(()=>n.remove(),2200); }
 
-function writeUniversal(value) {
-  localStorage.setItem(UNIVERSAL_KEY, JSON.stringify(value));
-}
-
-function esc(value = '') {
-  return String(value).replace(/[&<>\"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[c]));
-}
-
-function showHomePage() {
-  document.querySelector('#collection-shell')?.setAttribute('hidden', '');
-  document.querySelector('#editor-shell')?.setAttribute('hidden', '');
-  const home = document.querySelector('#home');
-  if (home) home.hidden = false;
-}
-
-function showUniversalTimeline() {
-  const data = readUniversal();
-  const home = document.querySelector('#home');
-  const editor = document.querySelector('#editor-shell');
-  const shell = document.querySelector('#collection-shell');
-  if (!shell) return;
-  if (home) home.hidden = true;
-  if (editor) editor.hidden = true;
-  shell.hidden = false;
-  const events = [...data.timeline].sort((a, b) => {
-    if (!a.date && !b.date) return 0;
-    if (!a.date) return 1;
-    if (!b.date) return -1;
-    return String(a.date).localeCompare(String(b.date));
-  });
-  shell.innerHTML = `<header class="topbar"><div class="brand"><button id="stability-timeline-home" class="home-button theme-button">‹ Library</button><span class="brand-mark">S</span><div><strong>ScriptSmith</strong><small>Universal Timeline</small></div></div><div></div><div class="top-actions"><button id="stability-add-timeline" class="primary-action">+ Add Event</button></div></header><main class="collection-page"><div class="collection-heading"><h1>Universal Timeline</h1><p>One chronological timeline shared across all of your stories.</p></div><div class="library-grid">${events.length ? events.map(e => `<button class="record-row theme-card" data-stability-event="${esc(e.id)}"><strong>${esc(e.title || 'Untitled Event')}</strong><span>${esc(e.date || 'Undated')} ${e.summary ? '· ' + esc(e.summary) : ''}</span></button>`).join('') : '<div class="library-empty">No universal timeline events yet. Add your first event above.</div>'}</div></main>`;
-  shell.querySelector('#stability-timeline-home').onclick = showHomePage;
-  shell.querySelector('#stability-add-timeline').onclick = () => {
-    data.timeline.push({ id: crypto.randomUUID(), title: 'New Event', date: '', summary: '', notes: '' });
-    writeUniversal(data);
-    showUniversalTimeline();
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme || 'paper';
+  const root=document.documentElement;
+  const themes={
+    paper:{bg:'#d8d0c4',surface:'#f7f1e7',text:'#292522',muted:'#6f665d',border:'#c8bbaa'},
+    sepia:{bg:'#cdbb9c',surface:'#f5e6c8',text:'#3b2b1f',muted:'#705744',border:'#b49b76'},
+    dark:{bg:'#1d1b1a',surface:'#292624',text:'#eee7dc',muted:'#b8aca0',border:'#4a433e'}
   };
-  shell.querySelectorAll('[data-stability-event]').forEach(button => {
-    button.onclick = () => editUniversalTimeline(button.dataset.stabilityEvent);
-  });
+  const t=themes[theme]||themes.paper;
+  Object.entries(t).forEach(([k,v])=>root.style.setProperty(`--ss-${k}`,v));
+  document.body.style.background=t.bg;
+  document.body.style.color=t.text;
+  document.querySelectorAll('.theme-card,.universal-card,.project-card,.record-row,.timeline-card').forEach(el=>{el.style.background=t.surface;el.style.color=t.text;el.style.borderColor=t.border;});
+}
+function applyWritingSettings() {
+  const s=getSettings(); applyTheme(s.theme);
+  const editor=document.querySelector('#editor');
+  if(editor){ editor.spellcheck=!!s.spellcheck; editor.style.fontFamily=s.fontFamily||'Georgia'; editor.style.fontSize=`${Number(s.fontSize)||12}pt`; editor.style.lineHeight=String(s.lineSpacing||'1.5'); }
 }
 
-function editUniversalTimeline(id) {
-  const data = readUniversal();
-  const event = data.timeline.find(item => item.id === id);
-  if (!event) return;
-  const shell = document.querySelector('#collection-shell');
-  if (!shell) return;
-  shell.hidden = false;
-  shell.innerHTML = `<header class="topbar"><div class="brand"><button id="stability-event-back" class="home-button theme-button">‹ Timeline</button><span class="brand-mark">S</span><div><strong>ScriptSmith</strong><small>Universal Timeline</small></div></div></header><main class="collection-page"><div class="collection-heading"><h1>Edit Timeline Event</h1></div><div class="record-form"><label>Event Name<input id="stability-event-title" value="${esc(event.title || '')}"></label><label>Date<input id="stability-event-date" type="date" value="${esc(event.date || '')}"></label><label>Summary<textarea id="stability-event-summary">${esc(event.summary || '')}</textarea></label><label>Details<textarea id="stability-event-notes">${esc(event.notes || '')}</textarea></label><div class="form-actions"><button id="stability-event-delete" class="theme-button">Delete Event</button><button id="stability-event-save" class="primary-action">Save Event</button></div></div></main>`;
-  shell.querySelector('#stability-event-back').onclick = showUniversalTimeline;
-  shell.querySelector('#stability-event-save').onclick = () => {
-    event.title = shell.querySelector('#stability-event-title').value.trim() || 'Untitled Event';
-    event.date = shell.querySelector('#stability-event-date').value;
-    event.summary = shell.querySelector('#stability-event-summary').value;
-    event.notes = shell.querySelector('#stability-event-notes').value;
-    writeUniversal(data);
-    showUniversalTimeline();
-  };
-  shell.querySelector('#stability-event-delete').onclick = () => {
-    data.timeline = data.timeline.filter(item => item.id !== id);
-    writeUniversal(data);
-    showUniversalTimeline();
-  };
+const charFields=[
+ ['name','Name','input'],['aliases','Aliases / Other Names','input'],['role','Role in Story','input'],['pronouns','Pronouns','input'],['age','Age','input'],['birthday','Birthday','input'],
+ ['appearance','Appearance','textarea'],['personality','Personality','textarea'],['background','Background / History','textarea'],['goals','Goals / Desires','textarea'],['fears','Fears / Conflicts','textarea'],
+ ['strengths','Strengths','textarea'],['weaknesses','Weaknesses','textarea'],['relationships','Relationships','textarea'],['arc','Character Arc','textarea'],['notes','Writer Notes','textarea']
+];
+function profileMarkup(record, universal=false) {
+  return `<div class="ss-profile-grid">${charFields.map(([key,label,type])=>`<label>${label}${type==='textarea'?`<textarea data-profile="${key}">${esc(record[key]||'')}</textarea>`:`<input data-profile="${key}" value="${esc(record[key]||'')}">`}</label>`).join('')}</div>`;
+}
+function editCharacter(record, save, back) {
+  const s=shellFor('collection');
+  s.innerHTML=`<header class="topbar"><div class="brand"><button id="ss-back" class="home-button theme-button">‹ Back</button><span class="brand-mark">S</span><div><strong>ScriptSmith</strong><small>Character Profile</small></div></div></header><main class="collection-page"><div class="collection-heading"><div><h1>Character Profile</h1><p>A complete writer's profile. Keep the card style; the profile opens separately.</p></div></div><div class="record-form">${profileMarkup(record)}<div class="form-actions"><button id="ss-delete" class="theme-button">Delete Character</button><button id="ss-save" class="primary-action">Save Character</button></div></div></main>`;
+  s.querySelector('#ss-back').onclick=back;
+  s.querySelectorAll('[data-profile]').forEach(el=>el.oninput=()=>{record[el.dataset.profile]=el.value;});
+  s.querySelector('#ss-save').onclick=()=>{save();notify('Character saved');};
+  s.querySelector('#ss-delete').onclick=()=>{if(getSettings().confirmBeforeDelete&&!confirm('Delete this character? This cannot be undone.'))return;save(true);};
+}
+function projectCharacters() { const d=getCurrentDocument(); d.metadata=d.metadata||{}; d.metadata.characters=Array.isArray(d.metadata.characters)?d.metadata.characters:[]; return d.metadata.characters; }
+function showProjectCharacter(id) {
+  const list=projectCharacters(), r=list.find(x=>x.id===id); if(!r)return;
+  editCharacter(r,(deleted=false)=>{ if(deleted){const i=list.findIndex(x=>x.id===id);if(i>=0)list.splice(i,1);home();} },()=>showProjectCharacters());
+}
+function showProjectCharacters() {
+  const p=document.querySelector('#workspace-panel'); if(!p)return;
+  const list=projectCharacters();
+  p.innerHTML=`<div class="explorer-header"><div><h1>Characters</h1><p>Full character profiles for this manuscript.</p></div><button id="ss-add-character" class="primary-action">+ Add Character</button></div><div class="explorer-list">${list.length?list.map(r=>`<button class="record-row theme-card" data-ss-character="${esc(r.id)}"><strong>${esc(r.name||'Untitled Character')}</strong><span>${esc(r.role||r.summary||'Open full character profile')}</span></button>`).join(''):'<div class="feature-placeholder">Nothing here yet. Add your first character.</div>'}</div>`;
+  p.querySelector('#ss-add-character').onclick=()=>{const r={id:crypto.randomUUID(),name:'New Character'};list.push(r);showProjectCharacter(r.id);};
+  p.querySelectorAll('[data-ss-character]').forEach(b=>b.onclick=()=>showProjectCharacter(b.dataset.ssCharacter));
 }
 
-function showSettingsPage() {
-  const settings = getSettings();
-  const home = document.querySelector('#home');
-  const collection = document.querySelector('#collection-shell');
-  const shell = document.querySelector('#editor-shell');
-  if (!shell) return;
-  if (home) home.hidden = true;
-  if (collection) collection.hidden = true;
-  shell.hidden = false;
-  shell.innerHTML = `<header class="topbar"><div class="brand"><button id="stability-settings-home" class="home-button theme-button">‹ Library</button><span class="brand-mark">S</span><div><strong>ScriptSmith</strong><small>Settings</small></div></div></header><main class="collection-page"><div class="collection-heading"><h1>Settings</h1><p>These preferences are saved locally on this device.</p></div><div class="record-form"><label>Theme<select id="stability-theme"><option value="paper">Paper</option><option value="sepia">Sepia</option><option value="dark">Dark</option></select></label><label>Default Font<input id="stability-font" value="${esc(settings.fontFamily)}"></label><label>Default Font Size<input id="stability-size" type="number" min="8" max="72" value="${settings.fontSize}"></label><label>Line Spacing<select id="stability-spacing"><option value="1">Single</option><option value="1.15">1.15</option><option value="1.5">1.5</option><option value="2">Double</option><option value="2.5">2.5</option><option value="3">Triple</option></select></label><label>Autosave Interval (seconds)<input id="stability-autosave-interval" type="number" min="5" max="300" value="${Math.max(5, Math.round((settings.autosaveIntervalMs || 30000) / 1000))}"></label><label><span>Autosave</span><input id="stability-autosave" type="checkbox" ${settings.autosave ? 'checked' : ''}></label><label><span>Spellcheck</span><input id="stability-spellcheck" type="checkbox" ${settings.spellcheck ? 'checked' : ''}></label><div class="form-actions"><button id="stability-reset" class="theme-button">Reset Defaults</button><button id="stability-save" class="primary-action">Save Settings</button></div></div></main>`;
-  shell.querySelector('#stability-theme').value = settings.theme || 'paper';
-  shell.querySelector('#stability-spacing').value = String(settings.lineSpacing || '1.5');
-  shell.querySelector('#stability-settings-home').onclick = showHomePage;
-  shell.querySelector('#stability-reset').onclick = () => { resetSettings(); showSettingsPage(); };
-  shell.querySelector('#stability-save').onclick = () => {
-    updateSettings({
-      theme: shell.querySelector('#stability-theme').value,
-      fontFamily: shell.querySelector('#stability-font').value.trim() || 'Georgia',
-      fontSize: Math.max(8, Math.min(72, Number(shell.querySelector('#stability-size').value) || 12)),
-      lineSpacing: shell.querySelector('#stability-spacing').value,
-      autosave: shell.querySelector('#stability-autosave').checked,
-      spellcheck: shell.querySelector('#stability-spellcheck').checked,
-      autosaveIntervalMs: Math.max(5000, Math.min(300000, (Number(shell.querySelector('#stability-autosave-interval').value) || 30) * 1000))
-    });
-    applySettingsToEditor();
-    showSettingsPage();
-  };
+function showUniversalCharacters() {
+  const data=readUniversal(), list=data.characters, s=shellFor('collection');
+  s.innerHTML=`<header class="topbar"><div class="brand"><button id="ss-u-home" class="home-button theme-button">‹ Library</button><span class="brand-mark">S</span><div><strong>ScriptSmith</strong><small>Universal Characters</small></div></div><div class="top-actions"><button id="ss-u-add" class="primary-action">+ Add Character</button></div></header><main class="collection-page"><div class="collection-heading"><h1>Universal Characters</h1><p>Characters shared across all of your stories.</p></div><div class="library-grid">${list.length?list.map(r=>`<button class="record-row theme-card" data-ss-u-character="${esc(r.id)}"><strong>${esc(r.name||'Untitled Character')}</strong><span>${esc(r.role||r.summary||'Open full character profile')}</span></button>`).join(''):'<div class="library-empty">Nothing here yet.</div>'}</div></main>`;
+  s.querySelector('#ss-u-home').onclick=home;
+  s.querySelector('#ss-u-add').onclick=()=>{const r={id:crypto.randomUUID(),name:'New Character'};list.push(r);writeUniversal(data);editUniversalCharacter(r.id);};
+  s.querySelectorAll('[data-ss-u-character]').forEach(b=>b.onclick=()=>editUniversalCharacter(b.dataset.ssUCharacter));
+}
+function editUniversalCharacter(id){const data=readUniversal(),r=data.characters.find(x=>x.id===id);if(!r)return;editCharacter(r,(deleted=false)=>{if(deleted){data.characters=data.characters.filter(x=>x.id!==id);writeUniversal(data);showUniversalCharacters();}else{writeUniversal(data);showUniversalCharacters();}},showUniversalCharacters);}
+
+function showUniversalTimeline(){
+  const data=readUniversal(), events=[...data.timeline].sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999'))), s=shellFor('collection');
+  s.innerHTML=`<header class="topbar"><div class="brand"><button id="ss-t-home" class="home-button theme-button">‹ Library</button><span class="brand-mark">S</span><div><strong>ScriptSmith</strong><small>Universal Timeline</small></div></div><div class="top-actions"><button id="ss-t-add" class="primary-action">+ Add Event</button></div></header><main class="collection-page"><div class="collection-heading"><h1>Universal Timeline</h1><p>One chronological timeline shared across all stories.</p></div><div class="library-grid">${events.length?events.map(e=>`<button class="record-row theme-card" data-ss-event="${esc(e.id)}"><strong>${esc(e.title||'Untitled Event')}</strong><span>${esc(e.date||'Undated')} ${e.summary?'· '+esc(e.summary):''}</span></button>`).join(''):'<div class="library-empty">No events yet. Add your first event.</div>'}</div></main>`;
+  s.querySelector('#ss-t-home').onclick=home;
+  s.querySelector('#ss-t-add').onclick=()=>{data.timeline.push({id:crypto.randomUUID(),title:'New Event',date:'',summary:'',notes:''});writeUniversal(data);showUniversalTimeline();};
+  s.querySelectorAll('[data-ss-event]').forEach(b=>b.onclick=()=>editUniversalEvent(b.dataset.ssEvent));
+}
+function editUniversalEvent(id){const data=readUniversal(),e=data.timeline.find(x=>x.id===id),s=shellFor('collection');if(!e)return;s.innerHTML=`<header class="topbar"><div class="brand"><button id="ss-event-back" class="home-button theme-button">‹ Timeline</button><span class="brand-mark">S</span><div><strong>ScriptSmith</strong><small>Universal Timeline</small></div></div></header><main class="collection-page"><div class="record-form"><label>Event Name<input id="ss-event-title" value="${esc(e.title||'')}"></label><label>Date<input id="ss-event-date" type="date" value="${esc(e.date||'')}"></label><label>Summary<textarea id="ss-event-summary">${esc(e.summary||'')}</textarea></label><label>Details<textarea id="ss-event-notes">${esc(e.notes||'')}</textarea></label><div class="form-actions"><button id="ss-event-delete" class="theme-button">Delete Event</button><button id="ss-event-save" class="primary-action">Save Event</button></div></div></main>`;s.querySelector('#ss-event-back').onclick=showUniversalTimeline;s.querySelector('#ss-event-save').onclick=()=>{e.title=s.querySelector('#ss-event-title').value.trim()||'Untitled Event';e.date=s.querySelector('#ss-event-date').value;e.summary=s.querySelector('#ss-event-summary').value;e.notes=s.querySelector('#ss-event-notes').value;writeUniversal(data);showUniversalTimeline();notify('Event saved');};s.querySelector('#ss-event-delete').onclick=()=>{if(getSettings().confirmBeforeDelete&&!confirm('Delete this event? This cannot be undone.'))return;data.timeline=data.timeline.filter(x=>x.id!==id);writeUniversal(data);showUniversalTimeline();notify('Event deleted');};}
+
+function showSettingsPage(){
+  const s=getSettings(), shell=shellFor('collection');
+  const options=(arr,current)=>arr.map(v=>`<option value="${v}" ${String(current)===String(v)?'selected':''}>${v}</option>`).join('');
+  shell.innerHTML=`<header class="topbar"><div class="brand"><button id="ss-settings-home" class="home-button theme-button">‹ Library</button><span class="brand-mark">S</span><div><strong>ScriptSmith</strong><small>Settings</small></div></div></header><main class="collection-page"><div class="collection-heading"><h1>Settings</h1><p>Program preferences are saved locally on this device.</p></div><div class="ss-settings-full"><section><h2>Appearance</h2><label>Theme<select id="ss-theme">${options(['paper','sepia','dark'],s.theme)}</select></label><label>Reading Mode<select id="ss-reading">${options(['page','focus','continuous'],s.readingMode)}</select></label></section><section><h2>Writing Defaults</h2><label>Default Font<input id="ss-font" value="${esc(s.fontFamily)}"></label><label>Default Font Size<input id="ss-size" type="number" min="8" max="72" value="${s.fontSize}"></label><label>Line Spacing<select id="ss-spacing">${options(['1','1.15','1.5','2','2.5','3'],s.lineSpacing)}</select></label><label>Spellcheck<input id="ss-spell" type="checkbox" ${s.spellcheck?'checked':''}></label></section><section><h2>Saving & Recovery</h2><label>Autosave<input id="ss-auto" type="checkbox" ${s.autosave?'checked':''}></label><label>Autosave Interval (seconds)<input id="ss-auto-time" type="number" min="5" max="300" value="${Math.round((s.autosaveIntervalMs||30000)/1000)}"></label><label>Offer Autosave Recovery<input id="ss-recover" type="checkbox" ${s.restoreAutosave?'checked':''}></label></section><section><h2>Display & Session</h2><label>Track Writing Sessions<input id="ss-session" type="checkbox" ${s.sessionTracking?'checked':''}></label><label>Show Session Word Count<input id="ss-session-count" type="checkbox" ${s.sessionWordCount?'checked':''}></label><label>Show Page Word Count<input id="ss-page-count" type="checkbox" ${s.pageWordCount?'checked':''}></label><label>Page Numbers<input id="ss-page-numbers" type="checkbox" ${s.pageNumbers?'checked':''}></label><label>Headers<input id="ss-headers" type="checkbox" ${s.headers?'checked':''}></label><label>Footers<input id="ss-footers" type="checkbox" ${s.footers?'checked':''}></label></section><section><h2>Safety</h2><label>Confirm Before Delete<input id="ss-confirm" type="checkbox" ${s.confirmBeforeDelete?'checked':''}></label></section><div class="form-actions"><button id="ss-reset" class="theme-button">Reset Defaults</button><button id="ss-settings-save" class="primary-action">Save Settings</button></div></div></main>`;
+  shell.querySelector('#ss-settings-home').onclick=home;
+  shell.querySelector('#ss-reset').onclick=()=>{resetSettings();applyWritingSettings();showSettingsPage();notify('Settings reset');};
+  shell.querySelector('#ss-settings-save').onclick=()=>{updateSettings({theme:shell.querySelector('#ss-theme').value,readingMode:shell.querySelector('#ss-reading').value,fontFamily:shell.querySelector('#ss-font').value.trim()||'Georgia',fontSize:Math.max(8,Math.min(72,Number(shell.querySelector('#ss-size').value)||12)),lineSpacing:shell.querySelector('#ss-spacing').value,spellcheck:shell.querySelector('#ss-spell').checked,autosave:shell.querySelector('#ss-auto').checked,autosaveIntervalMs:Math.max(5000,Math.min(300000,(Number(shell.querySelector('#ss-auto-time').value)||30)*1000)),restoreAutosave:shell.querySelector('#ss-recover').checked,sessionTracking:shell.querySelector('#ss-session').checked,sessionWordCount:shell.querySelector('#ss-session-count').checked,pageWordCount:shell.querySelector('#ss-page-count').checked,pageNumbers:shell.querySelector('#ss-page-numbers').checked,headers:shell.querySelector('#ss-headers').checked,footers:shell.querySelector('#ss-footers').checked,confirmBeforeDelete:shell.querySelector('#ss-confirm').checked});applyWritingSettings();notify('Settings saved');setTimeout(home,250);};
 }
 
-function applySettingsToEditor() {
-  const settings = getSettings();
-  document.documentElement.dataset.theme = settings.theme || 'paper';
-  const editor = document.querySelector('#editor');
-  if (!editor) return;
-  editor.spellcheck = !!settings.spellcheck;
-  editor.style.fontFamily = settings.fontFamily || 'Georgia';
-  editor.style.fontSize = `${Number(settings.fontSize) || 12}pt`;
-  editor.style.lineHeight = String(settings.lineSpacing || '1.5');
+function addManuscriptStructure(){
+  const d=getCurrentDocument();if(!d)return;d.metadata=d.metadata||{};d.metadata.chapters=Array.isArray(d.metadata.chapters)?d.metadata.chapters:[];
+  const ensure=(id,title,type)=>{if(!d.metadata.chapters.some(c=>c.type===type)){d.metadata.chapters.unshift({id:crypto.randomUUID(),title,content:'',type});}};
+  ensure('toc','Table of Contents','toc');ensure('prologue','Prologue','prologue');ensure('epilogue','Epilogue','epilogue');
+}
+function showManuscriptStructure(){
+  addManuscriptStructure(); const p=document.querySelector('#workspace-panel');if(!p)return;const d=getCurrentDocument(),chs=d.metadata.chapters;
+  p.querySelectorAll('[data-ss-structure]').forEach(x=>x.remove());
+  const head=document.createElement('div');head.className='ss-structure-tabs';head.innerHTML=chs.filter(c=>['toc','prologue','epilogue'].includes(c.type)).map(c=>`<button class="theme-button" data-ss-structure="${esc(c.id)}">${esc(c.title)}</button>`).join('');p.prepend(head);
+  head.querySelectorAll('[data-ss-structure]').forEach(b=>b.onclick=()=>{const c=chs.find(x=>x.id===b.dataset.ssStructure);if(c){document.querySelectorAll('.chapter-open').forEach(x=>{if(x.textContent===c.title)x.click();});}});
+}
+function addHomeSearch(){
+  const welcome=document.querySelector('.welcome');if(!welcome||document.querySelector('#ss-program-search'))return;
+  const wrap=document.createElement('div');wrap.className='ss-program-search';wrap.innerHTML='<input id="ss-program-search" type="search" placeholder="Search ScriptSmith…" aria-label="Search ScriptSmith"><span>⌕</span>';
+  welcome.insertBefore(wrap,document.querySelector('#templates'));
+  const input=wrap.querySelector('input');input.oninput=()=>{const q=input.value.trim().toLowerCase();document.querySelectorAll('#templates .template-card,.universal-library .universal-card,#library .project-card').forEach(el=>{el.hidden=!!q&&!el.textContent.toLowerCase().includes(q);});};
+}
+function ensureTimelineCard(){const lib=document.querySelector('.universal-library');if(!lib||lib.querySelector('#universal-timeline'))return;const c=document.createElement('button');c.className='universal-card';c.id='universal-timeline';c.innerHTML='<strong>Universal Timeline</strong><span>One timeline shared across all your stories</span>';lib.appendChild(c);c.onclick=showUniversalTimeline;}
+function intercept(){
+  document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+    if(b.id==='home-settings'||b.dataset.view==='settings'){e.preventDefault();e.stopImmediatePropagation();showSettingsPage();return;}
+    if(b.id==='universal-characters'){e.preventDefault();e.stopImmediatePropagation();showUniversalCharacters();return;}
+    if(b.id==='universal-timeline'){e.preventDefault();e.stopImmediatePropagation();showUniversalTimeline();return;}
+    if(b.dataset.view==='characters'&&document.querySelector('#editor-shell')){e.preventDefault();e.stopImmediatePropagation();setTimeout(showProjectCharacters,0);return;}
+    if(b.dataset.view==='manuscript'){setTimeout(showManuscriptStructure,0);return;}
+    if(b.matches('#save')){setTimeout(()=>notify('Save completed — your project is in the ScriptSmith Library'),120);}
+  },true);
 }
 
-function ensureUniversalTimelineCard() {
-  const library = document.querySelector('.universal-library');
-  if (!library || library.querySelector('#universal-timeline')) return;
-  const card = document.createElement('button');
-  card.className = 'universal-card';
-  card.id = 'universal-timeline';
-  card.innerHTML = '<strong>Universal Timeline</strong><span>One timeline shared across all your stories</span>';
-  library.appendChild(card);
-}
-
-function handleClick(event) {
-  const button = event.target.closest('button');
-  if (!button) return;
-  if (button.id === 'home-settings' || button.dataset.view === 'settings') {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    showSettingsPage();
-    return;
-  }
-  if (button.id === 'universal-timeline') {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    showUniversalTimeline();
-  }
-}
-
-export function installStabilityLayer() {
-  document.addEventListener('click', handleClick, true);
-  const observer = new MutationObserver(() => {
-    ensureUniversalTimelineCard();
-    applySettingsToEditor();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-  ensureUniversalTimelineCard();
-  applySettingsToEditor();
+export function installStabilityLayer(){
+  intercept();
+  const observer=new MutationObserver(()=>{ensureTimelineCard();addHomeSearch();applyWritingSettings();if(document.querySelector('#workspace-panel')&&!document.querySelector('#workspace-panel .ss-structure-tabs')&&document.querySelector('.side-button[data-view="manuscript"].active'))showManuscriptStructure();});
+  observer.observe(document.body,{childList:true,subtree:true});
+  ensureTimelineCard();addHomeSearch();applyWritingSettings();
 }
