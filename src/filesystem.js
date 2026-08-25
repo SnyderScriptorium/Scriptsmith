@@ -1,4 +1,4 @@
-import { open, save } from '@tauri-apps/plugin-dialog';
+import { open } from '@tauri-apps/plugin-dialog';
 import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile, readDir } from '@tauri-apps/plugin-fs';
 import { createBackup, shouldBackup } from './backups.js';
 import { migrateDocument } from './document.js';
@@ -11,21 +11,27 @@ const BACKUP_META_KEY = 'scriptsmith-last-backup';
 
 export function getCurrentPath() { return currentPath; }
 
+// Normal Save writes directly into ScriptSmith's internal Library.
+// The computer file system is used only for explicit Open/Export workflows.
 export async function saveProject(document, saveAs = false) {
   document = migrateDocument(document);
-  let path = currentPath;
-  if (!path || saveAs) {
-    path = await save({ title: saveAs ? 'Save ScriptSmith Document As' : 'Save ScriptSmith Document', defaultPath: `${safeName(document.title)}.scriptsmith.json`, filters: [{ name: 'ScriptSmith Document', extensions: ['scriptsmith.json'] }] });
-    if (!path) return false;
-  }
-  await writeTextFile(path, JSON.stringify(document, null, 2));
-  currentPath = path;
+  if (saveAs) return exportProject(document);
   await saveToLibrary(document);
   try {
     const last = localStorage.getItem(BACKUP_META_KEY);
     if (shouldBackup(last)) { await createBackup(document); localStorage.setItem(BACKUP_META_KEY, new Date().toISOString()); }
   } catch (_) {}
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('scriptsmith:saved'));
+  return true;
+}
+
+export async function exportProject(document) {
+  document = migrateDocument(document);
+  const { save } = await import('@tauri-apps/plugin-dialog');
+  const path = await save({ title: 'Export ScriptSmith Document', defaultPath: `${safeName(document.title)}.scriptsmith.json`, filters: [{ name: 'ScriptSmith Document', extensions: ['scriptsmith.json', 'json'] }] });
+  if (!path) return false;
+  await writeTextFile(path, JSON.stringify(document, null, 2));
+  currentPath = path;
   return true;
 }
 
