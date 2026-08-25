@@ -1,6 +1,11 @@
 const CURRENT_DOCUMENT_VERSION = 2;
 let currentDocument = null;
 
+const DEFAULT_MANUSCRIPT_PREFERENCES = {
+  fontFamily: 'Georgia', fontSize: 12, lineSpacing: 1,
+  header: '', footer: '', pageNumbers: false
+};
+
 export function createDocument() {
   return {
     id: crypto.randomUUID(),
@@ -14,7 +19,7 @@ export function createDocument() {
       author: '', notes: '',
       chapters: [{ id: crypto.randomUUID(), title: 'Chapter 1', content: '' }],
       characters: [], locations: [], research: [], timeline: [],
-      manuscriptPreferences: { fontFamily: 'Georgia', fontSize: 12, lineHeight: 1.6 }
+      manuscriptPreferences: { ...DEFAULT_MANUSCRIPT_PREFERENCES }
     }
   };
 }
@@ -31,10 +36,13 @@ export function migrateDocument(document) {
     if (!('content' in chapter)) chapter.content = '';
   });
   for (const key of ['characters', 'locations', 'research', 'timeline']) if (!Array.isArray(d.metadata[key])) d.metadata[key] = [];
+  const old = d.metadata.manuscriptPreferences || {};
   d.metadata.manuscriptPreferences = {
-    fontFamily: 'Georgia', fontSize: 12, lineHeight: 1.6,
-    ...(d.metadata.manuscriptPreferences || {})
+    ...DEFAULT_MANUSCRIPT_PREFERENCES,
+    ...old,
+    lineSpacing: Number(old.lineSpacing ?? old.lineHeight ?? 1) || 1
   };
+  delete d.metadata.manuscriptPreferences.lineHeight;
   d.version = CURRENT_DOCUMENT_VERSION;
   return d;
 }
