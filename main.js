@@ -4,6 +4,7 @@ import './styles/layout.css';
 import './styles/sprint2-polish.css';
 import './styles/sprint1-9.css';
 import './styles/author-studio-2.css';
+import './styles/settings-and-toolbar.css';
 import { initApp } from './app.js';
 import { installSprint19 } from './sprint1-9.js';
 import { installTimelineInteractions } from './timeline-interactions.js';
