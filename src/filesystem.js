@@ -1,5 +1,5 @@
 import { open } from '@tauri-apps/plugin-dialog';
-import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile, readDir } from '@tauri-apps/plugin-fs';
+import { BaseDirectory, exists, mkdir, readTextFile, writeTextFile, readDir, remove } from '@tauri-apps/plugin-fs';
 import { createBackup, shouldBackup } from './backups.js';
 import { migrateDocument } from './document.js';
 
@@ -41,6 +41,16 @@ export async function saveToLibrary(document) {
   try { await mkdir(LIBRARY_DIR,{baseDir:BaseDirectory.AppData,recursive:true}); await writeTextFile(`${LIBRARY_DIR}/${id}.json`,JSON.stringify(record,null,2),{baseDir:BaseDirectory.AppData}); }
   catch(error){ writeLocalLibrary(record); }
 }
+export async function deleteLibraryDocument(documentOrId){
+  const id=typeof documentOrId==='string' ? documentOrId : (documentOrId?.libraryId||documentOrId?.id);
+  if(!id)return false;
+  let removed=false;
+  try { const path=`${LIBRARY_DIR}/${id}.json`; if(await exists(path,{baseDir:BaseDirectory.AppData})){await remove(path,{baseDir:BaseDirectory.AppData});removed=true;} } catch(_){}
+  try { const all=localLibrary(); if(Object.prototype.hasOwnProperty.call(all,id)){delete all[id];localStorage.setItem(LOCAL_LIBRARY_KEY,JSON.stringify(all));removed=true;} } catch(_){}
+  if(currentPath && String(currentPath).includes(`${id}.json`))currentPath=null;
+  if(removed && typeof window!=='undefined')window.dispatchEvent(new CustomEvent('scriptsmith:library-changed'));
+  return removed;
+}
 export async function listLibraryDocuments() {
   const docs=[];
   try { await mkdir(LIBRARY_DIR,{baseDir:BaseDirectory.AppData,recursive:true}); const entries=await readDir(LIBRARY_DIR,{baseDir:BaseDirectory.AppData}); for(const entry of entries){if(!entry.name?.endsWith('.json'))continue;try{docs.push(migrateDocument(JSON.parse(await readTextFile(`${LIBRARY_DIR}/${entry.name}`,{baseDir:BaseDirectory.AppData}))));}catch(_){} } } catch(_){ }
@@ -55,6 +65,6 @@ export async function loadLibraryDocument(document){
 export async function saveAutosave(document){await mkdir(AUTOSAVE_DIR,{baseDir:BaseDirectory.AppData,recursive:true});await writeTextFile(AUTOSAVE_FILE,JSON.stringify({version:2,savedAt:new Date().toISOString(),document:migrateDocument(document)},null,2),{baseDir:BaseDirectory.AppData});}
 export async function hasAutosave(){return exists(AUTOSAVE_FILE,{baseDir:BaseDirectory.AppData});}
 export async function loadAutosave(){if(!(await hasAutosave()))return null;const data=JSON.parse(await readTextFile(AUTOSAVE_FILE,{baseDir:BaseDirectory.AppData}));return migrateDocument(data.document||null);}
-export async function clearAutosave(){try{const {remove}=await import('@tauri-apps/plugin-fs');if(await hasAutosave())await remove(AUTOSAVE_FILE,{baseDir:BaseDirectory.AppData});}catch(_){} }
+export async function clearAutosave(){try{if(await hasAutosave())await remove(AUTOSAVE_FILE,{baseDir:BaseDirectory.AppData});}catch(_){} }
 export function clearCurrentPath(){currentPath=null;}
 function safeName(value){return(value||'Untitled Document').replace(/[\\/:*?"<>|]/g,'-').trim();}
