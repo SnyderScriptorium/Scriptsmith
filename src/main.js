@@ -7,6 +7,8 @@ import './styles/author-studio-2.css';
 import '../styles/settings-and-toolbar.css';
 import { initApp } from './app.js';
 import { installStabilityLayer } from './stability.js';
+import { installRequestedFixes } from './requested-fixes.js';
 
 initApp();
 installStabilityLayer();
+installRequestedFixes();
