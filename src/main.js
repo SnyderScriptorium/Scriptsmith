@@ -4,6 +4,7 @@ import './styles/layout.css';
 import './styles/sprint2-polish.css';
 import './styles/sprint1-9.css';
 import './styles/author-studio-2.css';
+import './workspace.css';
 import { initApp } from './app.js';
 
 initApp();
