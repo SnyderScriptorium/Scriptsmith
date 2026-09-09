@@ -20,7 +20,7 @@ function ssInstallEditor(editor){
     block.style.textIndent=`${Math.max(0,current+(e.shiftKey?-0.5:0.5))}in`;
     editor.dispatchEvent(new Event('input',{bubbles:true}));
   },true);
-  editor.addEventListener('input',ssQueuePagination);
+  editor.addEventListener('input',()=>{editor.dispatchEvent(new CustomEvent('ss-document-input',{bubbles:true}));ssQueuePagination();});
 }
 
 function ssStyleFonts(){
@@ -71,17 +71,20 @@ function ssBookmark(){
   return {start,end,collapsed:r.collapsed};
 }
 function ssPoint(editor,offset){
-  const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);let left=Math.max(0,offset),n;
-  while((n=walker.nextNode())){if(left<=n.nodeValue.length)return{node:n,offset:left};left-=n.nodeValue.length;}
+  const walker=document.createTreeWalker(editor,NodeFilter.SHOW_TEXT);let left=Math.max(0,offset),n,last=null;
+  while((n=walker.nextNode())){last=n;if(left<=n.nodeValue.length)return{node:n,offset:left};left-=n.nodeValue.length;}
+  if(last)return{node:last,offset:last.nodeValue.length};
   return{node:editor,offset:editor.childNodes.length};
 }
 function ssRestoreBookmark(info){
   if(!info)return;const editors=ssEditors();if(!editors.length)return;
   const locate=offset=>{let left=Math.max(0,offset);for(let i=0;i<editors.length;i++){const len=editors[i].textContent.length;if(left<len||(left===len&&i===editors.length-1))return[editors[i],left];left-=len;}return[editors[editors.length-1],editors[editors.length-1].textContent.length];};
-  const [se,so]=locate(info.start),[ee,eo]=locate(info.end);try{const a=ssPoint(se,so),b=ssPoint(ee,eo),r=document.createRange();r.setStart(a.node,a.offset);r.setEnd(b.node,b.offset);const s=window.getSelection();s.removeAllRanges();s.addRange(r);se.focus({preventScroll:true});document.querySelectorAll('#ss-pages .ss-page').forEach(p=>p.classList.remove('active'));se.closest('.ss-page')?.classList.add('active');}catch{}}
+  const [se,so]=locate(info.start),[ee,eo]=locate(info.end);try{const a=ssPoint(se,so),b=ssPoint(ee,eo),r=document.createRange();r.setStart(a.node,a.offset);r.setEnd(b.node,b.offset);const s=window.getSelection();s.removeAllRanges();s.addRange(r);se.focus({preventScroll:true});document.querySelectorAll('#ss-pages .ss-page').forEach(p=>p.classList.remove('active'));se.closest('.ss-page')?.classList.add('active');se.scrollIntoView({block:'nearest',inline:'nearest'});}catch{}}
 
 function ssCloneFits(content,keep){
-  const clone=content.cloneNode(true);const rect=content.getBoundingClientRect();Object.assign(clone.style,{position:'fixed',left:'-100000px',top:'0',visibility:'hidden',pointerEvents:'none',width:`${rect.width}px`,height:`${content.clientHeight}px`,overflow:'hidden'});document.body.appendChild(clone);
+  const clone=content.cloneNode(true),rect=content.getBoundingClientRect();
+  Object.assign(clone.style,{position:'fixed',left:'-100000px',top:'0',visibility:'hidden',pointerEvents:'none',width:`${rect.width}px`,height:`${content.clientHeight}px`,overflow:'hidden',columnCount:getComputedStyle(content).columnCount,columnGap:getComputedStyle(content).columnGap,font:getComputedStyle(content).font,lineHeight:getComputedStyle(content).lineHeight});
+  document.body.appendChild(clone);
   const walker=document.createTreeWalker(clone,NodeFilter.SHOW_TEXT),nodes=[];let n;while((n=walker.nextNode()))nodes.push(n);
   let left=keep;
   for(const text of nodes){if(left>=text.nodeValue.length){left-=text.nodeValue.length;continue;}text.nodeValue=text.nodeValue.slice(0,Math.max(0,left));let sib=text.nextSibling;while(sib){const next=sib.nextSibling;sib.remove();sib=next;}let parent=text.parentNode;while(parent&&parent!==clone){let next=parent.nextSibling;while(next){const after=next.nextSibling;next.remove();next=after;}parent=parent.parentNode;}break;}
@@ -105,19 +108,8 @@ function ssSplitPage(page){
   if(content.scrollHeight>content.clientHeight+2)changed=ssSplitText(content,nextContent)||changed;
   return changed;
 }
-
-function ssReflowForward(){
-  const root=ssPages();if(!root)return false;let changed=false;
-  for(let i=0;i<ssEditors().length;i++){
-    const page=root.querySelectorAll('.ss-page')[i];if(page&&ssSplitPage(page))changed=true;
-  }
-  return changed;
-}
-function ssCleanupEmptyPages(){
-  const pages=[...document.querySelectorAll('#ss-pages .ss-page')];if(pages.length<=1)return false;let changed=false;
-  for(let i=pages.length-1;i>0;i--){const content=pages[i].querySelector('.ss-page-content');if(content&&!content.textContent.trim()&&!content.querySelector('img,table,.scriptsmith-page-break')){pages[i].remove();changed=true;}}
-  return changed;
-}
+function ssReflowForward(){const root=ssPages();if(!root)return false;let changed=false;const pages=[...root.querySelectorAll('.ss-page')];for(const page of pages){if(ssSplitPage(page))changed=true;}return changed;}
+function ssCleanupEmptyPages(){const pages=[...document.querySelectorAll('#ss-pages .ss-page')];if(pages.length<=1)return false;let changed=false;for(let i=pages.length-1;i>0;i--){const content=pages[i].querySelector('.ss-page-content');if(content&&!content.textContent.trim()&&!content.querySelector('img,table,.scriptsmith-page-break,.scriptsmith-section-break')){pages[i].remove();changed=true;}}return changed;}
 
 let ssPaginationQueued=false,ssPaginationRunning=false;
 function ssQueuePagination(){if(ssPaginationQueued)return;ssPaginationQueued=true;requestAnimationFrame(()=>{ssPaginationQueued=false;ssPaginate();});}
@@ -129,10 +121,9 @@ function ssPaginate(){
     let changed=true,passes=0;while(changed&&passes++<250){changed=false;if(ssReflowForward())changed=true;if(ssCleanupEmptyPages())changed=true;}
     const pages=[...root.querySelectorAll('.ss-page')];pages.forEach((page,i)=>{page.dataset.page=String(i);const h=page.querySelector('.ss-paper-header'),f=page.querySelector('.ss-paper-footer');if(h)h.textContent=ssHeaderValue();if(f)f.textContent=ssFooterValue()||`Page ${i+1}`;});
     const counter=document.querySelector('#ss-page-count');if(counter)counter.textContent=`${pages.length} ${pages.length===1?'page':'pages'}`;
-    if(bookmark&&changed)ssRestoreBookmark(bookmark);
+    if(bookmark&&changed)requestAnimationFrame(()=>ssRestoreBookmark(bookmark));
   }finally{ssPaginationRunning=false;}
 }
-
 function ssInstallPagination(){
   const pages=ssPages();if(!pages||pages.dataset.ssPaginationFix==='1')return;pages.dataset.ssPaginationFix='1';
   pages.addEventListener('input',ssQueuePagination);pages.addEventListener('paste',()=>requestAnimationFrame(ssQueuePagination));pages.addEventListener('drop',()=>requestAnimationFrame(ssQueuePagination));
@@ -140,8 +131,6 @@ function ssInstallPagination(){
 }
 function ssCloseCharacterAfterSave(){if(document.body.dataset.ssCloseCharacterHook==='1')return;document.body.dataset.ssCloseCharacterHook='1';document.addEventListener('click',e=>{const save=e.target.closest?.('[data-action="save-record"]');if(save)setTimeout(()=>save.closest('.ss-modal')?.querySelector('[data-action="close-modal"]')?.click(),0);});}
 function ssEnhance(){ssInstallPagination();ssStyleFonts();ssAddHeaderFooterFields();ssBindFormatting();ssCloseCharacterAfterSave();}
-
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ssEnhance,{once:true});else ssEnhance();
 window.addEventListener('load',ssEnhance,{once:true});
-const ssWatcher=new MutationObserver(()=>ssEnhance());
-ssWatcher.observe(document.documentElement,{childList:true,subtree:true});
+const ssWatcher=new MutationObserver(()=>ssEnhance());ssWatcher.observe(document.documentElement,{childList:true,subtree:true});
