@@ -1,6 +1,6 @@
 /* ScriptSmith editor reliability fixes.
- * Keeps the ribbon stationary while the document viewport scrolls and paginates
- * content continuously as the writer types or pastes.
+ * ONE pagination engine. Pages are real fixed-height editors; overflow is moved
+ * forward into the next page and the caret follows the document flow.
  */
 
 const ssPages = () => document.querySelector('#ss-pages');
@@ -12,6 +12,10 @@ const ssFooterValue = () => document.querySelector('.ss-footer-input')?.value ||
 function ssInstallEditor(editor) {
   if (!editor || editor.dataset.ssDirectFix === '1') return;
   editor.dataset.ssDirectFix = '1';
+  editor.addEventListener('focus', () => {
+    document.querySelectorAll('#ss-pages .ss-page').forEach(p => p.classList.remove('active'));
+    editor.closest('.ss-page')?.classList.add('active');
+  });
   editor.addEventListener('keydown', e => {
     if (e.key !== 'Tab') return;
     e.preventDefault();
@@ -26,7 +30,7 @@ function ssInstallEditor(editor) {
     block.style.textIndent = `${Math.max(0, current + delta)}in`;
     editor.dispatchEvent(new Event('input', { bubbles: true }));
   }, true);
-  editor.addEventListener('input', () => requestAnimationFrame(ssPaginate), false);
+  editor.addEventListener('input', () => requestAnimationFrame(ssPaginate));
 }
 
 function ssStyleFonts() {
@@ -115,13 +119,77 @@ function ssMakePage(index) {
   return page;
 }
 
+function ssTextOffset(root, node, offset) {
+  if (!root || !node) return 0;
+  const range = document.createRange();
+  try { range.setStart(root, 0); range.setEnd(node, offset); return range.toString().length; } catch { return 0; }
+}
+
+function ssSelectionBookmark() {
+  const pages = ssPages();
+  const sel = window.getSelection();
+  if (!pages || !sel || !sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  const startEditor = range.startContainer.nodeType === Node.TEXT_NODE ? range.startContainer.parentElement?.closest('.ss-page-content') : range.startContainer.closest?.('.ss-page-content');
+  const endEditor = range.endContainer.nodeType === Node.TEXT_NODE ? range.endContainer.parentElement?.closest('.ss-page-content') : range.endContainer.closest?.('.ss-page-content');
+  if (!startEditor || !endEditor) return null;
+  let start = 0, end = 0;
+  for (const editor of ssEditors()) {
+    if (editor === startEditor) start += ssTextOffset(editor, range.startContainer, range.startOffset);
+    else start += editor.textContent.length;
+    if (editor === endEditor) { end += ssTextOffset(editor, range.endContainer, range.endOffset); break; }
+    end += editor.textContent.length;
+  }
+  return { start, end };
+}
+
+function ssPointAtOffset(root, wanted) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let remaining = Math.max(0, wanted), node;
+  while ((node = walker.nextNode())) {
+    if (remaining <= node.nodeValue.length) return { node, offset: remaining };
+    remaining -= node.nodeValue.length;
+  }
+  return { node: root, offset: root.childNodes.length };
+}
+
+function ssRestoreSelection(bookmark) {
+  if (!bookmark) return;
+  const editors = ssEditors();
+  let startRemaining = bookmark.start;
+  let endRemaining = bookmark.end;
+  let startEditor = editors[editors.length - 1] || null;
+  let endEditor = startEditor;
+  for (const editor of editors) {
+    const len = editor.textContent.length;
+    if (bookmark.start <= startRemaining && startRemaining <= len) { startEditor = editor; break; }
+    startRemaining -= len;
+  }
+  for (const editor of editors) {
+    const len = editor.textContent.length;
+    if (bookmark.end <= endRemaining && endRemaining <= len) { endEditor = editor; break; }
+    endRemaining -= len;
+  }
+  if (!startEditor || !endEditor) return;
+  const a = ssPointAtOffset(startEditor, startRemaining);
+  const b = ssPointAtOffset(endEditor, endRemaining);
+  const range = document.createRange();
+  range.setStart(a.node, a.offset);
+  range.setEnd(b.node, b.offset);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+  startEditor.closest('.ss-page')?.classList.add('active');
+}
+
 function ssCloneFits(content, keepLength) {
   const clone = content.cloneNode(true);
   clone.style.position = 'fixed';
   clone.style.left = '-100000px';
   clone.style.top = '0';
   clone.style.visibility = 'hidden';
-  clone.style.width = `${content.clientWidth}px`;
+  clone.style.pointerEvents = 'none';
+  clone.style.width = `${content.getBoundingClientRect().width}px`;
   clone.style.height = `${content.clientHeight}px`;
   clone.style.overflow = 'hidden';
   document.body.appendChild(clone);
@@ -130,15 +198,23 @@ function ssCloneFits(content, keepLength) {
   let n;
   while ((n = walker.nextNode())) nodes.push(n);
   let remaining = keepLength;
+  let reached = false;
   for (const text of nodes) {
     if (remaining >= text.nodeValue.length) remaining -= text.nodeValue.length;
     else {
       text.nodeValue = text.nodeValue.slice(0, Math.max(0, remaining));
       remaining = 0;
+      reached = true;
     }
-    if (remaining === 0) {
+    if (reached) {
       let sibling = text.nextSibling;
       while (sibling) { const next = sibling.nextSibling; sibling.remove(); sibling = next; }
+      let parent = text.parentNode;
+      while (parent && parent !== clone) {
+        let next = parent.nextSibling;
+        while (next) { const after = next.nextSibling; next.remove(); next = after; }
+        parent = parent.parentNode;
+      }
       break;
     }
   }
@@ -162,8 +238,7 @@ function ssSplitLongText(content, nextContent) {
     else high = mid - 1;
   }
   if (!best) return false;
-  let cut = best;
-  let consumed = 0;
+  let cut = best, consumed = 0;
   for (const text of nodes) {
     if (consumed + text.nodeValue.length >= best) {
       const local = best - consumed;
@@ -184,8 +259,8 @@ function ssSplitLongText(content, nextContent) {
   range.setStart(cutNode, cutOffset);
   range.setEnd(content, content.childNodes.length);
   const fragment = range.extractContents();
-  if (!fragment.textContent?.trim()) return false;
-  nextContent.insertBefore(fragment, nextContent.firstChild);
+  if (!fragment.textContent?.length) return false;
+  nextContent.appendChild(fragment);
   return true;
 }
 
@@ -193,47 +268,62 @@ function ssSplitPage(page) {
   const content = page.querySelector('.ss-page-content');
   if (!content || content.scrollHeight <= content.clientHeight + 2) return false;
   const pages = ssPages();
-  const index = [...pages.querySelectorAll('.ss-page')].indexOf(page);
-  const next = pages.querySelectorAll('.ss-page')[index + 1] || ssMakePage(index + 1);
+  const list = [...pages.querySelectorAll('.ss-page')];
+  const index = list.indexOf(page);
+  const next = list[index + 1] || ssMakePage(index + 1);
   if (!next) return false;
   const nextContent = next.querySelector('.ss-page-content');
+
+  // Move complete blocks first. This preserves formatting and avoids breaking
+  // paragraphs until a paragraph itself is taller than the page.
+  let moved = false;
   while (content.scrollHeight > content.clientHeight + 2 && content.children.length > 1) {
     nextContent.insertBefore(content.lastElementChild, nextContent.firstChild);
+    moved = true;
   }
-  if (content.scrollHeight > content.clientHeight + 2) return ssSplitLongText(content, nextContent);
-  return true;
+  if (content.scrollHeight > content.clientHeight + 2) {
+    const split = ssSplitLongText(content, nextContent);
+    moved = moved || split;
+  }
+  return moved;
 }
 
+let ssPaginationQueued = false;
 function ssPaginate() {
-  const pages = ssPages();
-  if (!pages) return;
-  ssEditors().forEach(ssInstallEditor);
-  let guard = 0;
-  let changed = true;
-  while (changed && guard++ < 200) {
-    changed = false;
-    for (const page of [...pages.querySelectorAll('.ss-page')]) {
-      if (ssSplitPage(page)) changed = true;
+  if (ssPaginationQueued) return;
+  ssPaginationQueued = true;
+  requestAnimationFrame(() => {
+    ssPaginationQueued = false;
+    const pages = ssPages();
+    if (!pages) return;
+    const bookmark = ssSelectionBookmark();
+    ssEditors().forEach(ssInstallEditor);
+    let guard = 0, changed = true;
+    while (changed && guard++ < 200) {
+      changed = false;
+      for (const page of [...pages.querySelectorAll('.ss-page')]) {
+        if (ssSplitPage(page)) changed = true;
+      }
     }
-  }
-  pages.querySelectorAll('.ss-page').forEach((page, i) => {
-    page.dataset.page = String(i);
-    const footer = page.querySelector('.ss-paper-footer');
-    if (footer && !ssFooterValue()) {
-      const pref = document.querySelector('#ss-pages')?.closest('.ss-writing-shell') ? 'Page ' : '';
-      footer.textContent = pref ? `Page ${i + 1}` : '';
-    }
+    pages.querySelectorAll('.ss-page').forEach((page, i) => {
+      page.dataset.page = String(i);
+      const header = page.querySelector('.ss-paper-header');
+      const footer = page.querySelector('.ss-paper-footer');
+      if (header && !header.textContent) header.textContent = ssHeaderValue();
+      if (footer && !ssFooterValue()) footer.textContent = `Page ${i + 1}`;
+    });
+    const count = pages.querySelectorAll('.ss-page').length || 1;
+    const counter = document.querySelector('#ss-page-count');
+    if (counter) counter.textContent = `${count} ${count === 1 ? 'page' : 'pages'}`;
+    ssRestoreSelection(bookmark);
   });
-  const count = pages.querySelectorAll('.ss-page').length || 1;
-  const counter = document.querySelector('#ss-page-count');
-  if (counter) counter.textContent = `${count} ${count === 1 ? 'page' : 'pages'}`;
 }
 
 function ssInstallPagination() {
   const pages = ssPages();
   if (!pages || pages.dataset.ssPaginationFix === '1') return;
   pages.dataset.ssPaginationFix = '1';
-  pages.addEventListener('input', () => requestAnimationFrame(ssPaginate));
+  pages.addEventListener('input', ssPaginate);
   pages.addEventListener('paste', () => requestAnimationFrame(ssPaginate));
   requestAnimationFrame(ssPaginate);
 }
