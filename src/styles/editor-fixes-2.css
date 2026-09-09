@@ -1,2 +1,105 @@
-.ss-tool.active{background:rgba(42,35,29,.14)!important;box-shadow:inset 0 0 0 2px currentColor!important;border-radius:5px;font-weight:800}.ss-tool[aria-pressed="true"]{background:rgba(42,35,29,.14)!important}.ss-header-footer-controls{display:flex;gap:.55rem;flex-wrap:wrap;margin-top:.45rem}.ss-header-footer-controls label{display:flex;align-items:center;gap:.35rem;font-size:.78rem;font-weight:600}.ss-header-footer-controls input{width:170px;min-height:28px;padding:.3rem .45rem;border:1px solid var(--ss-border,#c8bbaa);border-radius:5px;background:var(--ss-surface,#f7f1e7);color:var(--ss-text,#292522)}#ss-font{min-width:190px}#ss-font option{font-size:15px;padding:.2rem}.ss-page-content{overflow:hidden;box-sizing:border-box}.ss-measure-copy{pointer-events:none!important}.ss-page{position:relative}.ss-paper-header,.ss-paper-footer{min-height:1.2em;white-space:pre-wrap;overflow:hidden}.ss-paper-header:empty,.ss-paper-footer:empty{min-height:0}@media(max-width:900px){.ss-header-footer-controls{display:grid;grid-template-columns:1fr}.ss-header-footer-controls input{width:100%}}
-/* Pagination is owned by the editor core in editor-fixes-2.js. */
+/* ScriptSmith editor enhancements.
+ * Pagination and page sizing belong to the editor core and workspace.css.
+ * This file is limited to editor-specific presentation rules.
+ */
+
+/* Toolbar state */
+.ss-tool.active,
+.ss-tool[aria-pressed="true"] {
+  background: rgba(42, 35, 29, 0.14) !important;
+  border-radius: 5px;
+  font-weight: 800;
+}
+
+.ss-tool.active {
+  box-shadow: inset 0 0 0 2px currentColor !important;
+}
+
+/* Header and footer controls */
+.ss-header-footer-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 0.45rem;
+}
+
+.ss-header-footer-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.ss-header-footer-controls input {
+  width: 170px;
+  min-height: 28px;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--ss-border, #c8bbaa);
+  border-radius: 5px;
+  background: var(--ss-surface, #f7f1e7);
+  color: var(--ss-text, #292522);
+}
+
+/* Font controls */
+#ss-font {
+  min-width: 190px;
+}
+
+#ss-font option {
+  padding: 0.2rem;
+  font-size: 15px;
+}
+
+.ss-font-preview {
+  position: relative;
+}
+
+/* Page/editor chrome */
+.ss-page {
+  position: relative;
+}
+
+.ss-page-content {
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.ss-page-content:focus {
+  outline: none;
+}
+
+.ss-measure-copy {
+  pointer-events: none !important;
+}
+
+.ss-paper-header,
+.ss-paper-footer {
+  min-height: 1.2em;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+.ss-paper-header:empty,
+.ss-paper-footer:empty {
+  min-height: 0;
+}
+
+/* Character editor action is handled by the main workspace UI. */
+.ss-character-save-close {
+  display: none !important;
+}
+
+/* Pagination is owned by editor-fixes-2.js and workspace.css. */
+
+@media (max-width: 900px) {
+  .ss-header-footer-controls {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .ss-header-footer-controls input {
+    width: 100%;
+  }
+}
