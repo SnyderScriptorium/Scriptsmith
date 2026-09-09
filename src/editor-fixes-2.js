@@ -1,12 +1,7 @@
-/* ScriptSmith — direct editor behavior fixes. These hooks target the actual DOM created by app.js. */
-
-const SS_FONT_GROUPS = {
-  'Traditional Serif': ['Baskerville','Bodoni 72','Book Antiqua','Bookman','Cambria','Century Schoolbook','Constantia','Didot','EB Garamond','Garamond','Georgia','Hoefler Text','Palatino','Palatino Linotype','Times New Roman'],
-  'Literary Serif': ['Cormorant Garamond','Libre Baskerville','Merriweather','Noto Serif','Source Serif 4','Rockwell'],
-  'Modern Sans': ['Aptos','Arial','Calibri','Century Gothic','Futura','Gill Sans','Helvetica','Helvetica Neue','Inter','Lato','Montserrat','Open Sans','Optima','Poppins','Raleway','Roboto','Segoe UI','Source Sans 3','Tahoma','Trebuchet MS','Verdana'],
-  'Monospace': ['Consolas','Courier New','Lucida Console','Menlo','Monaco'],
-  'Display & Character': ['Arial Black','Copperplate','Franklin Gothic Medium','Impact','Nunito','Papyrus','Comic Sans MS','Segoe Print','Brush Script MT']
-};
+/* ScriptSmith editor reliability fixes.
+ * Keeps the ribbon stationary while the document viewport scrolls and paginates
+ * content continuously as the writer types or pastes.
+ */
 
 const ssPages = () => document.querySelector('#ss-pages');
 const ssEditors = () => [...document.querySelectorAll('#ss-pages .ss-page-content')];
@@ -32,24 +27,32 @@ function ssInstallEditor(editor) {
     block.style.textIndent = `${Math.max(0, current + delta)}in`;
     editor.dispatchEvent(new Event('input', { bubbles: true }));
   }, true);
+
+  editor.addEventListener('input', () => requestAnimationFrame(ssPaginate), false);
 }
 
 function ssStyleFonts() {
   const select = document.querySelector('#ss-font');
   if (!select) return;
   const current = select.value || 'Georgia';
+  const groups = {
+    'Traditional Serif': ['Baskerville','Bodoni 72','Book Antiqua','Bookman','Cambria','Century Schoolbook','Constantia','Didot','EB Garamond','Garamond','Georgia','Hoefler Text','Palatino','Palatino Linotype','Times New Roman'],
+    'Literary Serif': ['Cormorant Garamond','Libre Baskerville','Merriweather','Noto Serif','Source Serif 4','Rockwell'],
+    'Modern Sans': ['Aptos','Arial','Calibri','Century Gothic','Futura','Gill Sans','Helvetica','Helvetica Neue','Inter','Lato','Montserrat','Open Sans','Optima','Poppins','Raleway','Roboto','Segoe UI','Source Sans 3','Tahoma','Trebuchet MS','Verdana'],
+    'Monospace': ['Consolas','Courier New','Lucida Console','Menlo','Monaco'],
+    'Display & Character': ['Arial Black','Copperplate','Franklin Gothic Medium','Impact','Nunito','Papyrus','Comic Sans MS','Segoe Print','Brush Script MT']
+  };
   select.innerHTML = '';
-  for (const [group, fonts] of Object.entries(SS_FONT_GROUPS)) {
+  for (const [group, fonts] of Object.entries(groups)) {
     const optgroup = document.createElement('optgroup');
     optgroup.label = group;
-    for (const font of fonts) {
+    fonts.forEach(font => {
       const option = document.createElement('option');
       option.value = font;
       option.textContent = font;
-      option.style.fontFamily = font.includes(' ') ? `'${font}'` : font;
-      option.title = `Preview: ${font}`;
+      option.style.fontFamily = `'${font.replace(/'/g, "\\'")}'`;
       optgroup.appendChild(option);
-    }
+    });
     select.appendChild(optgroup);
   }
   select.value = [...select.options].some(o => o.value === current) ? current : 'Georgia';
@@ -69,48 +72,39 @@ function ssAddHeaderFooterFields() {
   controls.className = 'ss-header-footer-controls';
   controls.innerHTML = '<label>Header <input class="ss-header-input" type="text" placeholder="Type your header"></label><label>Footer <input class="ss-footer-input" type="text" placeholder="Type your footer"></label>';
   group.appendChild(controls);
-
-  const savedHeader = document.querySelector('#ss-pages .ss-paper-header')?.textContent || '';
-  const savedFooter = document.querySelector('#ss-pages .ss-paper-footer')?.textContent || '';
-  controls.querySelector('.ss-header-input').value = savedHeader;
-  controls.querySelector('.ss-footer-input').value = savedFooter.replace(/^Page\s+\d+$/,'');
-
+  controls.querySelector('.ss-header-input').value = document.querySelector('#ss-pages .ss-paper-header')?.textContent || '';
+  controls.querySelector('.ss-footer-input').value = document.querySelector('#ss-pages .ss-paper-footer')?.textContent?.replace(/^Page\s+\d+$/,'') || '';
   controls.addEventListener('input', e => {
-    if (e.target.classList.contains('ss-header-input')) {
-      document.querySelectorAll('#ss-pages .ss-paper-header').forEach(h => h.textContent = e.target.value);
-    }
-    if (e.target.classList.contains('ss-footer-input')) {
-      document.querySelectorAll('#ss-pages .ss-paper-footer').forEach(f => f.textContent = e.target.value);
-    }
+    if (e.target.classList.contains('ss-header-input')) document.querySelectorAll('#ss-pages .ss-paper-header').forEach(h => h.textContent = e.target.value);
+    if (e.target.classList.contains('ss-footer-input')) document.querySelectorAll('#ss-pages .ss-paper-footer').forEach(f => f.textContent = e.target.value);
   });
 }
 
 function ssFormattingState() {
-  for (const cmd of ['bold','italic','underline','strikeThrough']) {
+  ['bold','italic','underline','strikeThrough'].forEach(cmd => {
     document.querySelectorAll(`#ss-ribbon .ss-tool[data-cmd="${cmd}"]`).forEach(button => {
       let active = false;
       try { active = document.queryCommandState(cmd); } catch {}
       button.classList.toggle('active', active);
       button.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
-  }
+  });
 }
 
 function ssBindFormatting() {
   if (document.body.dataset.ssFormattingFix === '1') return;
   document.body.dataset.ssFormattingFix = '1';
   document.addEventListener('mousedown', e => {
-    const button = e.target.closest?.('#ss-ribbon .ss-tool[data-cmd="bold"],#ss-ribbon .ss-tool[data-cmd="italic"],#ss-ribbon .ss-tool[data-cmd="underline"],#ss-ribbon .ss-tool[data-cmd="strikeThrough"]');
-    if (button) e.preventDefault();
+    if (e.target.closest?.('#ss-ribbon .ss-tool[data-cmd="bold"],#ss-ribbon .ss-tool[data-cmd="italic"],#ss-ribbon .ss-tool[data-cmd="underline"],#ss-ribbon .ss-tool[data-cmd="strikeThrough"]')) e.preventDefault();
   }, true);
   document.addEventListener('selectionchange', ssFormattingState);
   document.addEventListener('keyup', ssFormattingState);
   document.addEventListener('mouseup', ssFormattingState);
-  ssFormattingState();
 }
 
 function ssMakePage(index) {
   const pages = ssPages();
+  if (!pages) return null;
   const page = document.createElement('article');
   page.className = 'ss-page';
   page.dataset.page = String(index);
@@ -122,85 +116,127 @@ function ssMakePage(index) {
   return page;
 }
 
-function ssSplitPage(page) {
-  const content = page.querySelector('.ss-page-content');
-  if (!content || content.scrollHeight <= content.clientHeight + 3) return false;
-  const pages = ssPages();
-  const index = [...pages.querySelectorAll('.ss-page')].indexOf(page);
-  const next = pages.querySelectorAll('.ss-page')[index + 1] || ssMakePage(index + 1);
-  const nextContent = next.querySelector('.ss-page-content');
+function ssCloneFits(content, keepLength) {
+  const clone = content.cloneNode(true);
+  clone.style.position = 'fixed';
+  clone.style.left = '-100000px';
+  clone.style.top = '0';
+  clone.style.visibility = 'hidden';
+  clone.style.width = `${content.clientWidth}px`;
+  clone.style.height = `${content.clientHeight}px`;
+  clone.style.overflow = 'hidden';
+  document.body.appendChild(clone);
 
+  const walker = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  let n;
+  while ((n = walker.nextNode())) nodes.push(n);
+  let remaining = keepLength;
+  for (const text of nodes) {
+    if (remaining >= text.nodeValue.length) remaining -= text.nodeValue.length;
+    else {
+      text.nodeValue = text.nodeValue.slice(0, Math.max(0, remaining));
+      remaining = 0;
+    }
+    if (remaining === 0) {
+      let sibling = text.nextSibling;
+      while (sibling) { const next = sibling.nextSibling; sibling.remove(); sibling = next; }
+      break;
+    }
+  }
+  const fits = clone.scrollHeight <= clone.clientHeight + 2;
+  clone.remove();
+  return fits;
+}
+
+function ssSplitLongText(content, nextContent) {
   const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
   const nodes = [];
-  let node;
-  while ((node = walker.nextNode())) nodes.push(node);
-  const total = nodes.reduce((n, x) => n + x.nodeValue.length, 0);
-  if (!total) return false;
+  let n;
+  while ((n = walker.nextNode())) if (n.nodeValue.length) nodes.push(n);
+  if (!nodes.length) return false;
 
-  const locate = position => {
-    let offset = 0;
-    for (const text of nodes) {
-      if (position <= offset + text.nodeValue.length) return [text, position - offset];
-      offset += text.nodeValue.length;
-    }
-    return [nodes[nodes.length - 1], nodes[nodes.length - 1].nodeValue.length];
-  };
-
-  // Binary-search the character position that fits on the current physical page.
-  let low = 0, high = total, best = 0;
+  let total = nodes.reduce((sum, x) => sum + x.nodeValue.length, 0);
+  let low = 1, high = total - 1, best = 0;
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
-    const clone = content.cloneNode(true);
-    clone.style.position = 'fixed';
-    clone.style.left = '-100000px';
-    clone.style.top = '0';
-    clone.style.visibility = 'hidden';
-    clone.style.height = `${content.clientHeight}px`;
-    clone.style.width = `${content.clientWidth}px`;
-    document.body.appendChild(clone);
-    const w = document.createTreeWalker(clone, NodeFilter.SHOW_TEXT);
-    let seen = 0, cutNode = null, cutOffset = 0, x;
-    while ((x = w.nextNode())) {
-      if (mid <= seen + x.nodeValue.length) { cutNode = x; cutOffset = mid - seen; break; }
-      seen += x.nodeValue.length;
+    if (ssCloneFits(content, mid)) { best = mid; low = mid + 1; }
+    else high = mid - 1;
+  }
+  if (!best) return false;
+
+  // Prefer a nearby word boundary so prose is not needlessly broken mid-word.
+  let cut = best;
+  let consumed = 0;
+  for (const text of nodes) {
+    if (consumed + text.nodeValue.length >= best) {
+      const local = best - consumed;
+      const before = text.nodeValue.slice(0, local);
+      const boundary = Math.max(before.lastIndexOf(' '), before.lastIndexOf('\n'), before.lastIndexOf('\t'));
+      if (boundary > 20) cut = consumed + boundary + 1;
+      break;
     }
-    if (cutNode) {
-      const range = document.createRange();
-      range.setStart(cutNode, cutOffset);
-      range.setEnd(clone, clone.childNodes.length);
-      range.deleteContents();
-    }
-    const fits = clone.scrollHeight <= clone.clientHeight + 3;
-    clone.remove();
-    if (fits) { best = mid; low = mid + 1; } else high = mid - 1;
+    consumed += text.nodeValue.length;
   }
 
-  // Never split inside the first few characters of a page; leave a normal page break instead.
-  if (best <= 0 || best >= total) return false;
-  const [start, offset] = locate(best);
+  // Re-locate the text node because the DOM is unchanged so far.
+  let pos = 0, cutNode = null, cutOffset = 0;
+  for (const text of nodes) {
+    if (pos + text.nodeValue.length >= cut) { cutNode = text; cutOffset = cut - pos; break; }
+    pos += text.nodeValue.length;
+  }
+  if (!cutNode || cutOffset <= 0 || cutOffset >= cutNode.nodeValue.length) return false;
   const range = document.createRange();
-  range.setStart(start, Math.max(0, offset));
+  range.setStart(cutNode, cutOffset);
   range.setEnd(content, content.childNodes.length);
   const fragment = range.extractContents();
   if (!fragment.textContent?.trim()) return false;
   nextContent.insertBefore(fragment, nextContent.firstChild);
-  next.querySelector('.ss-paper-header').textContent = ssHeaderValue();
-  next.querySelector('.ss-paper-footer').textContent = ssFooterValue();
+  return true;
+}
+
+function ssSplitPage(page) {
+  const content = page.querySelector('.ss-page-content');
+  if (!content || content.scrollHeight <= content.clientHeight + 2) return false;
+  const pages = ssPages();
+  const index = [...pages.querySelectorAll('.ss-page')].indexOf(page);
+  const next = pages.querySelectorAll('.ss-page')[index + 1] || ssMakePage(index + 1);
+  if (!next) return false;
+  const nextContent = next.querySelector('.ss-page-content');
+
+  // Move whole blocks first. This preserves formatting and avoids rebuilding HTML.
+  while (content.scrollHeight > content.clientHeight + 2 && content.children.length > 1) {
+    nextContent.insertBefore(content.lastElementChild, nextContent.firstChild);
+  }
+
+  if (content.scrollHeight > content.clientHeight + 2) return ssSplitLongText(content, nextContent);
   return true;
 }
 
 function ssPaginate() {
   const pages = ssPages();
   if (!pages) return;
-  let changed = true;
+  ssEditors().forEach(ssInstallEditor);
+
+  // If earlier edits left an empty page between populated pages, keep it as a real page
+  // only when it was explicitly inserted by the user. Never cap the number of pages.
   let guard = 0;
-  while (changed && guard++ < 30) {
+  let changed = true;
+  while (changed && guard++ < 200) {
     changed = false;
     for (const page of [...pages.querySelectorAll('.ss-page')]) {
       if (ssSplitPage(page)) changed = true;
     }
   }
-  pages.querySelectorAll('.ss-page').forEach((page, i) => page.dataset.page = String(i));
+
+  pages.querySelectorAll('.ss-page').forEach((page, i) => {
+    page.dataset.page = String(i);
+    const footer = page.querySelector('.ss-paper-footer');
+    if (footer && !ssFooterValue()) {
+      const pref = document.querySelector('#ss-pages')?.closest('.ss-writing-shell') ? 'Page ' : '';
+      footer.textContent = pref ? `Page ${i + 1}` : '';
+    }
+  });
   const count = pages.querySelectorAll('.ss-page').length || 1;
   const counter = document.querySelector('#ss-page-count');
   if (counter) counter.textContent = `${count} ${count === 1 ? 'page' : 'pages'}`;
@@ -210,8 +246,8 @@ function ssInstallPagination() {
   const pages = ssPages();
   if (!pages || pages.dataset.ssPaginationFix === '1') return;
   pages.dataset.ssPaginationFix = '1';
-  ssEditors().forEach(ssInstallEditor);
   pages.addEventListener('input', () => requestAnimationFrame(ssPaginate));
+  pages.addEventListener('paste', () => requestAnimationFrame(ssPaginate));
   requestAnimationFrame(ssPaginate);
 }
 
@@ -220,7 +256,6 @@ function ssCloseCharacterAfterSave() {
     const save = e.target.closest?.('#ss-record-save');
     if (!save || save.dataset.ssCloseHook === '1') return;
     save.dataset.ssCloseHook = '1';
-    // app.js performs the actual save synchronously in its onclick. Run after it.
     setTimeout(() => document.querySelector('#ss-record-back')?.click(), 0);
   }, true);
 }
