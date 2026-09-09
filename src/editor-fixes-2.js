@@ -33,7 +33,7 @@ function ssInstallEditor(editor) {
 
 function ssStyleFonts() {
   const select = document.querySelector('#ss-font');
-  if (!select) return;
+  if (!select || select.dataset.ssFontsApplied === '1') return;
   const current = select.value || 'Georgia';
   const groups = {
     'Traditional Serif': ['Baskerville','Bodoni 72','Book Antiqua','Bookman','Cambria','Century Schoolbook','Constantia','Didot','EB Garamond','Garamond','Georgia','Hoefler Text','Palatino','Palatino Linotype','Times New Roman'],
@@ -56,6 +56,7 @@ function ssStyleFonts() {
     select.appendChild(optgroup);
   }
   select.value = [...select.options].some(o => o.value === current) ? current : 'Georgia';
+  select.dataset.ssFontsApplied = '1';
   select.onchange = () => {
     const editor = ssActiveEditor();
     if (!editor) return;
@@ -165,7 +166,6 @@ function ssSplitLongText(content, nextContent) {
   }
   if (!best) return false;
 
-  // Prefer a nearby word boundary so prose is not needlessly broken mid-word.
   let cut = best;
   let consumed = 0;
   for (const text of nodes) {
@@ -179,7 +179,6 @@ function ssSplitLongText(content, nextContent) {
     consumed += text.nodeValue.length;
   }
 
-  // Re-locate the text node because the DOM is unchanged so far.
   let pos = 0, cutNode = null, cutOffset = 0;
   for (const text of nodes) {
     if (pos + text.nodeValue.length >= cut) { cutNode = text; cutOffset = cut - pos; break; }
@@ -204,7 +203,6 @@ function ssSplitPage(page) {
   if (!next) return false;
   const nextContent = next.querySelector('.ss-page-content');
 
-  // Move whole blocks first. This preserves formatting and avoids rebuilding HTML.
   while (content.scrollHeight > content.clientHeight + 2 && content.children.length > 1) {
     nextContent.insertBefore(content.lastElementChild, nextContent.firstChild);
   }
@@ -218,8 +216,6 @@ function ssPaginate() {
   if (!pages) return;
   ssEditors().forEach(ssInstallEditor);
 
-  // If earlier edits left an empty page between populated pages, keep it as a real page
-  // only when it was explicitly inserted by the user. Never cap the number of pages.
   let guard = 0;
   let changed = true;
   while (changed && guard++ < 200) {
@@ -252,10 +248,11 @@ function ssInstallPagination() {
 }
 
 function ssCloseCharacterAfterSave() {
+  if (document.body.dataset.ssCloseCharacterHook === '1') return;
+  document.body.dataset.ssCloseCharacterHook = '1';
   document.addEventListener('click', e => {
     const save = e.target.closest?.('#ss-record-save');
-    if (!save || save.dataset.ssCloseHook === '1') return;
-    save.dataset.ssCloseHook = '1';
+    if (!save) return;
     setTimeout(() => document.querySelector('#ss-record-back')?.click(), 0);
   }, true);
 }
@@ -269,6 +266,15 @@ function ssEnhance() {
 }
 
 ssCloseCharacterAfterSave();
-new MutationObserver(ssEnhance).observe(document.body, { childList: true, subtree: true });
+let ssEnhanceQueued = false;
+const ssEnhanceQueuedRun = () => {
+  if (ssEnhanceQueued) return;
+  ssEnhanceQueued = true;
+  requestAnimationFrame(() => {
+    ssEnhanceQueued = false;
+    ssEnhance();
+  });
+};
+new MutationObserver(ssEnhanceQueuedRun).observe(document.body, { childList: true, subtree: true });
 window.addEventListener('load', ssEnhance);
 setTimeout(ssEnhance, 50);
