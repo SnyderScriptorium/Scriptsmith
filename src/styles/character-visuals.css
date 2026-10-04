@@ -1,0 +1,16 @@
+/* character-visuals.css — procedural portrait / monogram avatar presentation. */
+
+.ss-record-card .ss-record-open{display:flex;align-items:center;gap:12px}
+.ss-record-avatar{width:54px;height:64px;border-radius:8px;overflow:hidden;flex:0 0 auto;background:#e8e1d8;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.ss-record-avatar svg{width:100%;height:100%;display:block}
+.ss-record-text{min-width:0}
+.ss-record-text>strong,.ss-record-text>span{display:block}
+.ss-record-text>span{color:var(--ss-muted);margin-top:4px}
+
+.ss-portrait-row{display:flex;gap:18px;align-items:center;margin:16px 0;padding:16px;border:1px solid var(--ss-border);border-radius:10px;background:rgba(0,0,0,.03)}
+.ss-portrait{width:150px;height:180px;border-radius:10px;overflow:hidden;flex:0 0 auto;background:#e8e1d8;box-shadow:0 4px 14px rgba(0,0,0,.18)}
+.ss-portrait svg{width:100%;height:100%;display:block}
+.ss-portrait-meta{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.ss-portrait-note{margin:0;font-size:.85rem;color:var(--ss-muted);max-width:460px}
+.ss-portrait-seed{margin:0;font-size:.75rem;color:var(--ss-muted);font-variant-numeric:tabular-nums}
+@media(max-width:640px){.ss-portrait-row{flex-direction:column;align-items:flex-start}}
