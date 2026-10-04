@@ -16,9 +16,101 @@ function ssEditorOf(node){
   return node?.closest?.('.ss-page-content')||null;
 }
 
+/* Cross-page editing: make page boundaries behave like Word.
+ * Each page is its own contenteditable, so Backspace/Delete/arrow keys would
+ * otherwise stop dead at the boundary. These handlers join paragraphs across
+ * pages and carry the caret across, then let the pagination reflow settle. */
+
+function ssCollapsedCaret(editor){
+  const s=window.getSelection();
+  if(!s?.rangeCount||!s.isCollapsed)return null;
+  const r=s.getRangeAt(0);
+  if(!editor.contains(r.startContainer))return null;
+  return {textOffset:ssOffsetInEditor(editor,r.startContainer,r.startOffset)};
+}
+
+function ssSetCaret(node,offset){
+  try{
+    const r=document.createRange();
+    r.setStart(node,offset);r.collapse(true);
+    const s=window.getSelection();s.removeAllRanges();s.addRange(r);
+  }catch{}
+}
+
+function ssCaretToPoint(editor,textOffset){
+  const p=ssPoint(editor,Math.max(0,textOffset));
+  ssSetCaret(p.node,p.offset);
+}
+
+function ssPageEditor(page){return page?.querySelector('.ss-page-content')||null;}
+
+// Move fromEditor's first block into toEditor's last block (Word-style
+// paragraph join) and leave the caret at the join point.
+function ssJoinBoundary(fromEditor,toEditor){
+  const first=fromEditor.firstChild;
+  if(!first)return false;
+  const frag=document.createDocumentFragment();
+  if(first.nodeType===1){while(first.firstChild)frag.appendChild(first.firstChild);first.remove();}
+  else frag.appendChild(first);
+  const target=toEditor.lastChild;
+  let joinNode,joinOffset;
+  if(target&&target.nodeType===1){joinNode=target;joinOffset=target.childNodes.length;target.appendChild(frag);}
+  else{joinNode=toEditor;joinOffset=toEditor.childNodes.length;toEditor.appendChild(frag);}
+  toEditor.focus({preventScroll:true});
+  ssSetCaret(joinNode,joinOffset);
+  return true;
+}
+
+function ssBoundaryKey(e,editor){
+  const caret=ssCollapsedCaret(editor);
+  if(!caret)return false;
+  const page=editor.closest('.ss-page');
+  const total=editor.textContent.length;
+  const atStart=caret.textOffset===0,atEnd=caret.textOffset>=total;
+  if(e.key==='Backspace'&&atStart){
+    const prev=ssPageEditor(page?.previousElementSibling);
+    if(!prev)return false;
+    e.preventDefault();
+    if(!editor.textContent.trim()&&!editor.querySelector('img,table')){
+      prev.focus({preventScroll:true});ssCaretToPoint(prev,prev.textContent.length);
+    }else ssJoinBoundary(editor,prev);
+    editor.dispatchEvent(new Event('input',{bubbles:true}));
+    return true;
+  }
+  if(e.key==='Delete'&&atEnd){
+    const next=ssPageEditor(page?.nextElementSibling);
+    if(!next||(!next.textContent.trim()&&!next.querySelector('img,table')))return false;
+    e.preventDefault();
+    const keep=caret.textOffset;
+    ssJoinBoundary(next,editor);
+    ssCaretToPoint(editor,keep);
+    editor.focus({preventScroll:true});
+    editor.dispatchEvent(new Event('input',{bubbles:true}));
+    return true;
+  }
+  if(e.key==='ArrowUp'&&atStart){
+    const prev=ssPageEditor(page?.previousElementSibling);
+    if(!prev)return false;
+    e.preventDefault();
+    prev.focus({preventScroll:true});ssCaretToPoint(prev,prev.textContent.length);
+    return true;
+  }
+  if(e.key==='ArrowDown'&&atEnd){
+    const next=ssPageEditor(page?.nextElementSibling);
+    if(!next)return false;
+    e.preventDefault();
+    next.focus({preventScroll:true});ssCaretToPoint(next,0);
+    return true;
+  }
+  return false;
+}
+
 function ssInstallEditor(editor){
   if(!editor||editor.dataset.ssCoreInstalled==='1')return;
   editor.dataset.ssCoreInstalled='1';
+  editor.addEventListener('keydown',e=>{
+    if(e.key==='Backspace'||e.key==='Delete'||e.key==='ArrowUp'||e.key==='ArrowDown')ssBoundaryKey(e,editor);
+  });
   editor.addEventListener('focus',()=>{
     document.querySelectorAll('#ss-pages .ss-page').forEach(p=>p.classList.remove('active'));
     editor.closest('.ss-page')?.classList.add('active');
