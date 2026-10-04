@@ -5,6 +5,7 @@ import './styles/sprint2-polish.css';
 import './styles/sprint1-9.css';
 import './styles/author-studio-2.css';
 import './workspace.css';
+import './styles/character-visuals.css';
 import './workspace-themes.css';
 import './styles/editor-fixes-2.css';
 import { initApp } from './app.js';
