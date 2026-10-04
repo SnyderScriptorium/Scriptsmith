@@ -366,11 +366,21 @@ window.addEventListener('load',ssEnhance,{once:true});
 let ssLifecycleObserver=null;
 function ssWatchWritingView(){
   const view=document.querySelector('#ss-view');
-  if(!view||ssLifecycleObserver===view._ssObserver)return;
-  ssLifecycleObserver?.disconnect();
-  const observer=new MutationObserver(()=>{if(document.querySelector('#ss-pages'))ssEnhance();});
-  observer.observe(view,{childList:true});
-  view._ssObserver=observer;
-  ssLifecycleObserver=observer;
+  if(view&&ssLifecycleObserver!==view._ssObserver){
+    ssLifecycleObserver?.disconnect();
+    const observer=new MutationObserver(()=>{if(document.querySelector('#ss-pages'))ssEnhance();});
+    observer.observe(view,{childList:true});
+    view._ssObserver=observer;
+    ssLifecycleObserver=observer;
+  }
+  // renderWriting() builds #ss-pages synchronously inside the open-manuscript
+  // click handler, so #ss-pages can already exist before the observer above
+  // attaches; reopening a manuscript also replaces #ss-view wholesale. In both
+  // cases no mutation fires and pagination would never install, leaving text
+  // clipped at one fixed-height page. Enhance directly when #ss-pages exists.
+  // ssEnhance() is idempotent per #ss-pages element, so polling it is safe.
+  if(document.querySelector('#ss-pages'))ssEnhance();
 }
-const ssLifecycleTimer=setInterval(()=>{ssWatchWritingView();if(document.querySelector('#ss-pages'))clearInterval(ssLifecycleTimer);},100);
+// Keep watching for the life of the app: every manuscript open rebuilds
+// #ss-view/#ss-pages from scratch, so a one-shot timer is not enough.
+setInterval(ssWatchWritingView,100);
