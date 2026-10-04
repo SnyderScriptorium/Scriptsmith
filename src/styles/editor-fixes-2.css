@@ -42,18 +42,120 @@
   color: var(--ss-text, #292522);
 }
 
-/* Font controls */
-#ss-font {
-  min-width: 190px;
-}
-
-#ss-font option {
-  padding: 0.2rem;
-  font-size: 15px;
-}
-
-.ss-font-preview {
+/* Font picker (true typeface previews) */
+.ss-font-picker {
   position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.ss-font-picker-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 190px;
+  max-width: 240px;
+  height: 32px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--ss-border, #c8bbaa);
+  border-radius: 5px;
+  background: var(--ss-surface, #f7f1e7);
+  color: var(--ss-text, #292522);
+  cursor: pointer;
+  font: inherit;
+}
+
+.ss-font-picker-label {
+  flex: 1 1 auto;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.ss-font-picker-caret {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  opacity: 0.6;
+}
+
+.ss-font-picker-popup {
+  position: fixed;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  max-height: 340px;
+  background: var(--ss-paper, #fbf7ef);
+  color: var(--ss-text, #292522);
+  border: 1px solid var(--ss-border, #c8bbaa);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+}
+
+.ss-font-picker-preview {
+  flex: 0 0 auto;
+  padding: 0.55rem 0.7rem;
+  border-bottom: 1px solid var(--ss-border, #c8bbaa);
+  background: rgba(42, 35, 29, 0.05);
+  font-size: 15px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ss-font-picker-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 0.3rem;
+  min-height: 0;
+}
+
+.ss-font-picker-group-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  padding: 0.45rem 0.5rem 0.2rem;
+}
+
+.ss-font-picker-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0.32rem 0.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.ss-font-picker-item:hover,
+.ss-font-picker-item:focus-visible {
+  background: rgba(42, 35, 29, 0.1);
+  outline: none;
+}
+
+.ss-font-picker-item.selected {
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+.ss-font-picker-item-name {
+  font-size: 16px;
+  line-height: 1.3;
+}
+
+/* Full-width picker inside settings labels */
+.ss-settings-field .ss-font-picker,
+.ss-settings-field .ss-font-picker-button {
+  width: 100%;
+  max-width: none;
 }
 
 /* Page/editor chrome */
