@@ -18,6 +18,12 @@ h1, h2, h3 { overflow-wrap: break-word; text-wrap: balance; }
   .ss-library-intro h1 { font-size: clamp(1.75rem, 8.5vw, 2.5rem); line-height: 1.15; margin: .15rem 0; }
   .ss-library-intro p { font-size: 1rem; }
   .ss-library-actions { flex-direction: column; align-items: stretch; }
+  /* kill intrinsic-width overflow: every link in the chain may shrink,
+     buttons go full-width of the (padded) container */
+  .ss-library-intro > *, .ss-library-actions { min-width: 0; max-width: 100%; }
+  .ss-library-actions .ss-button, .ss-library-actions .ss-primary {
+    width: 100%; max-width: 100%; min-width: 0; flex-shrink: 1;
+  }
 
   /* ---- touch targets: 44px minimum ---- */
   .ss-button, .ss-primary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: .7rem 1rem; font-size: 1rem; }
