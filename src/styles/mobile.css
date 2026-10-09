@@ -1,0 +1,74 @@
+/* ScriptSmith mobile layout — imported LAST in main.js so these rules win
+   the cascade over the desktop styles. CSS only; no JS or markup changes. */
+
+/* ---- never allow horizontal page scroll ---- */
+html, body { overflow-x: clip; max-width: 100%; }
+.ss-app { min-width: 0; }
+img, svg, video, canvas, table { max-width: 100%; }
+h1, h2, h3 { overflow-wrap: break-word; text-wrap: balance; }
+
+@media (max-width: 768px) {
+  /* ---- library shell ---- */
+  .ss-library-main { padding: 24px 16px 56px; max-width: 100%; }
+  .ss-library-header, .ss-work-header { padding: 0 14px; gap: .6rem; }
+  .ss-brand, .ss-work-brand { min-width: 0; }
+
+  /* ---- intro block: stack, fluid headline ---- */
+  .ss-library-intro { flex-direction: column; align-items: stretch; gap: 1.1rem; margin-bottom: 26px; }
+  .ss-library-intro h1 { font-size: clamp(1.75rem, 8.5vw, 2.5rem); line-height: 1.15; margin: .15rem 0; }
+  .ss-library-intro p { font-size: 1rem; }
+  .ss-library-actions { flex-direction: column; align-items: stretch; }
+
+  /* ---- touch targets: 44px minimum ---- */
+  .ss-button, .ss-primary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: .7rem 1rem; font-size: 1rem; }
+  .ss-tool { min-height: 44px; min-width: 44px; }
+  .ss-category-card { min-height: 44px; padding: 16px; }
+  .ss-project-open { min-height: 60px; padding: 14px; }
+  .ss-project-delete { min-width: 48px; min-height: 44px; }
+  .ss-manuscript-tabs button { min-height: 44px; padding: 10px 14px; }
+  .ss-ribbon-tabs button { min-height: 44px; padding: 10px 14px; }
+  .toolbar button, .toolbar select { min-height: 44px; }
+  .ss-back { min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; }
+
+  /* ---- grids: single column ---- */
+  .ss-section-head { flex-wrap: wrap; }
+  .ss-category-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .ss-project-grid { grid-template-columns: 1fr; }
+
+  /* ---- editor chrome ---- */
+  .ss-work-header { flex-wrap: wrap; height: auto; padding: 10px 12px; }
+  .ss-work-actions { min-width: 0; flex-wrap: wrap; width: 100%; justify-content: flex-start; }
+  .ss-manuscript-tabs { padding: 0 10px; }
+  .ss-workspace-body { padding: 16px 10px 60px; }
+
+  /* ---- panels, modals, forms ---- */
+  .ss-panel { padding: 18px 14px; }
+  .ss-modal { width: calc(100vw - 32px); padding: 20px 16px; }
+  .ss-modal-actions { flex-wrap: wrap; }
+  .ss-modal-actions .ss-button { flex: 1 1 auto; }
+  .ss-profile-grid, .ss-settings-grid, .ss-front-summary { grid-template-columns: 1fr; }
+  .ss-form-actions { flex-wrap: wrap; }
+  .ss-form-actions .ss-button { flex: 1 1 auto; }
+  .ss-toast { left: 12px; right: 12px; bottom: 12px; }
+
+  /* ---- 16px inputs stop iOS auto-zoom ---- */
+  .ss-panel input, .ss-panel textarea, .ss-panel select,
+  .ss-title-wrap input, .ss-modal select, .ss-modal input,
+  .ss-note-box input, .ss-note-box textarea, .ss-toc-row input { font-size: 16px; }
+
+  /* ---- classic editor page: shrink the paper margins ---- */
+  .page { padding: 30px 22px 50px; width: calc(100% - 20px); }
+}
+
+@media (max-width: 480px) {
+  .ss-library-main { padding: 18px 12px 48px; }
+  .ss-library-header { padding: 0 10px; }
+  .ss-library-intro h1 { font-size: clamp(1.6rem, 9vw, 2.1rem); }
+  .ss-section-head h2 { font-size: 1.25rem; }
+  .ss-category-grid { grid-template-columns: 1fr; }
+  .ss-manuscript-tabs { padding: 0 6px; }
+  .ss-ribbon-group { padding: 3px 6px; }
+  .ss-workspace-body { padding: 12px 8px 56px; }
+  .page { padding: 24px 16px 40px; }
+  .ss-panel { padding: 16px 12px; }
+}
