@@ -1,6 +1,9 @@
 /* ScriptSmith mobile layout — imported LAST in main.js so these rules win
    the cascade over the desktop styles. CSS only; no JS or markup changes. */
 
+/* ---- mobile hierarchical nav: hidden on desktop by default ---- */
+.ss-mobile-tabs, .ss-mobile-subbar { display: none; }
+
 /* ---- never allow horizontal page scroll ---- */
 html, body { overflow-x: clip; max-width: 100%; }
 .ss-app { min-width: 0; }
@@ -63,7 +66,32 @@ h1, h2, h3 { overflow-wrap: break-word; text-wrap: balance; }
   .ss-note-box input, .ss-note-box textarea, .ss-toc-row input { font-size: 16px; }
 
   /* ---- classic editor page: shrink the paper margins ---- */
-  .page { padding: 30px 22px 50px; width: calc(100% - 20px); }
+  /* FIX: was .page (unused), real class is .ss-page */
+  .ss-page { padding: 30px 22px 50px !important; width: calc(100% - 20px) !important; min-width: 0 !important; max-width: 100% !important; }
+  .ss-editor-scroll { padding: 16px 10px !important; }
+
+  /* ---- hierarchical mobile editor nav ---- */
+  /* Hide desktop 9-tab nav on mobile, show hierarchical nav */
+  .ss-manuscript-tabs { display: none !important; }
+  .ss-mobile-tabs { display: flex !important; width: 100%; background: var(--ss-paper); border-bottom: 1px solid var(--ss-border); padding: 0; margin: 0; }
+  .ss-mobile-tabs button { flex: 1 1 0; min-width: 0; min-height: 48px; padding: 10px 4px; font-size: 0.9rem; font-weight: 600; background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--ss-muted); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ss-mobile-tabs button.active { color: var(--ss-accent); border-bottom-color: var(--ss-accent); }
+  .ss-mobile-subbar { display: flex !important; flex-wrap: wrap; gap: 6px; width: 100%; padding: 8px 10px; background: var(--ss-surface); border-bottom: 1px solid var(--ss-border); min-height: 0; }
+  .ss-mobile-subbar:empty { display: none !important; padding: 0; border: none; }
+  .ss-mobile-subbar button { flex: 0 1 auto; min-height: 40px; padding: 8px 12px; font-size: 0.85rem; background: var(--ss-button-bg); border: 1px solid var(--ss-border); border-radius: 8px; color: var(--ss-ink); cursor: pointer; white-space: nowrap; }
+  .ss-mobile-subbar button.active { background: var(--ss-accent); color: #fff; border-color: var(--ss-accent); }
+  .ss-mobile-subbar button[data-mfmt] { font-weight: bold; min-width: 44px; text-align: center; }
+
+  /* ---- sticky editor chrome on mobile ---- */
+  .ss-work-header { position: sticky !important; top: 0 !important; z-index: 100 !important; background: var(--ss-paper) !important; }
+  .ss-mobile-tabs { position: sticky !important; top: 0 !important; z-index: 99 !important; }
+  /* When header + tabs are both sticky, tabs sit below header */
+  .ss-work-header + .ss-mobile-tabs { top: 0 !important; }
+
+  /* ---- hide duplicate top header when bottom tab bar is visible ---- */
+  /* The bottom tab bar (tabbar.css) already provides Library/Write/Worlds/Characters/More */
+  /* Keep the work header (has Back + Save) but make it compact */
+  .ss-work-header .ss-work-brand .ss-mark { display: none; }
 }
 
 @media (max-width: 480px) {
@@ -75,6 +103,10 @@ h1, h2, h3 { overflow-wrap: break-word; text-wrap: balance; }
   .ss-manuscript-tabs { padding: 0 6px; }
   .ss-ribbon-group { padding: 3px 6px; }
   .ss-workspace-body { padding: 12px 8px 56px; }
-  .page { padding: 24px 16px 40px; }
+  .ss-page { padding: 24px 16px 40px !important; width: calc(100% - 16px) !important; min-width: 0 !important; }
   .ss-panel { padding: 16px 12px; }
+  /* Tighter mobile tabs on very small screens */
+  .ss-mobile-tabs button { font-size: 0.82rem; padding: 10px 2px; min-height: 46px; }
+  .ss-mobile-subbar { padding: 6px 8px; gap: 4px; }
+  .ss-mobile-subbar button { min-height: 38px; padding: 6px 10px; font-size: 0.8rem; }
 }
