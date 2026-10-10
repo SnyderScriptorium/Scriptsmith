@@ -18,8 +18,6 @@ import java.io.File
 
 class MainActivity : TauriActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
-    // v1008: immediate startup toast — proves MainActivity.onCreate runs at all.
-    Toast.makeText(this, "ScriptSmith v1011 starting", Toast.LENGTH_LONG).show()
     try {
       enableEdgeToEdge()
       super.onCreate(savedInstanceState)
@@ -32,29 +30,7 @@ class MainActivity : TauriActivity() {
       finish()
       return
     }
-    // v1007 DIAGNOSTIC BUILD: launching a separate Activity (CrashReportActivity)
-    // appears to fail silently on the user's phone, so show the diagnostics in an
-    // AlertDialog directly on MainActivity instead. Unconditional 10s trigger.
-    try {
-      WebViewDiag.log(this, "MainActivity.onCreate completed — 10s AlertDialog diagnostics scheduled")
-      Handler(Looper.getMainLooper()).postDelayed({
-        try {
-          val finished = WebViewDiag.mainPageFinished.get()
-          val error = WebViewDiag.hadError.get()
-          WebViewDiag.log(
-            this,
-            "DIAG-TRIGGER: 10s AlertDialog — mainPageFinished=$finished hadError=$error mainUrl=${WebViewDiag.mainUrl}"
-          )
-          showDiagnosticsDialog()
-        } catch (t: Throwable) {
-          try {
-            Toast.makeText(this, "diagnostics failed: ${t.message}", Toast.LENGTH_LONG).show()
-          } catch (_: Throwable) {
-          }
-        }
-      }, 10000)
-    } catch (_: Throwable) {
-    }
+    // Diagnostic dialog removed — was showing on every startup.
   }
 
   private fun readAppFile(name: String, maxChars: Int): String {
