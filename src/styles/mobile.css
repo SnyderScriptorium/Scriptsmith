@@ -52,7 +52,7 @@ h1, h2, h3 { overflow-wrap: break-word; text-wrap: balance; }
 
   /* ---- panels, modals, forms ---- */
   .ss-panel { padding: 18px 14px; }
-  .ss-modal { width: calc(100vw - 32px); padding: 20px 16px; }
+  .ss-modal { width: calc(100vw - 32px); padding: 20px 16px; max-height: calc(100vh - 60px); max-height: calc(100dvh - 60px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .ss-modal-actions { flex-wrap: wrap; }
   .ss-modal-actions .ss-button { flex: 1 1 auto; }
   .ss-profile-grid, .ss-settings-grid, .ss-front-summary { grid-template-columns: 1fr; }
