@@ -140,13 +140,26 @@ export function createFontPicker({ current = 'Georgia', onPick = null } = {}) {
 
   function positionPopup() {
     const r = button.getBoundingClientRect();
-    const w = Math.max(260, r.width);
+    const vw = window.innerWidth, vh = window.innerHeight;
+    // Constrain width to the viewport so the popup never runs off-screen on phones.
+    const w = Math.min(Math.max(260, r.width), vw - 16);
     popup.style.minWidth = `${w}px`;
-    let left = Math.min(r.left, window.innerWidth - w - 12);
+    popup.style.width = `${w}px`;
+    popup.style.maxWidth = `${vw - 16}px`;
+    const left = Math.min(r.left, vw - w - 8);
     popup.style.left = `${Math.max(8, left)}px`;
-    const h = Math.min(340, window.innerHeight - r.bottom - 16);
-    popup.style.maxHeight = h > 140 ? `${h}px` : '340px';
-    popup.style.top = `${r.bottom + 4}px`;
+    // Prefer below the button; flip above it when there is not enough room.
+    const spaceBelow = vh - r.bottom - 8;
+    const spaceAbove = r.top - 8;
+    const avail = Math.max(spaceBelow, spaceAbove) - 4;
+    popup.style.maxHeight = `${Math.max(160, Math.min(340, avail))}px`;
+    if (spaceBelow >= 180 || spaceBelow >= spaceAbove) {
+      popup.style.top = `${r.bottom + 4}px`;
+      popup.style.bottom = 'auto';
+    } else {
+      popup.style.top = 'auto';
+      popup.style.bottom = `${vh - r.top + 4}px`;
+    }
   }
   function open() {
     closeOpenPicker(api);

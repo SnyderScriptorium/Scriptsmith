@@ -83,6 +83,15 @@ h1, h2, h3 { overflow-wrap: break-word; text-wrap: balance; }
   .ss-mobile-subbar button.active { background: var(--ss-accent); color: #fff; border-color: var(--ss-accent); }
   .ss-mobile-subbar button[data-mfmt] { font-weight: bold; min-width: 44px; text-align: center; }
 
+  /* ---- full scrollable formatting toolbar (Write tab) ---- */
+  .ss-mtools-scroll { display: flex !important; align-items: center; gap: 6px; width: 100%; overflow-x: auto !important; overflow-y: hidden !important; padding: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+  .ss-mtools-scroll > * { flex: 0 0 auto !important; }
+  .ss-mtools-scroll button { min-height: 40px; min-width: 40px; }
+  .ss-mtools-scroll select { height: 40px; max-width: 130px; padding: 0 6px; font-size: 0.85rem; border: 1px solid var(--ss-border); border-radius: 8px; background: var(--ss-button-bg); color: var(--ss-ink); }
+  .ss-mtools-scroll input[type=color] { width: 40px; height: 40px; padding: 2px; border: 1px solid var(--ss-border); border-radius: 8px; background: var(--ss-button-bg); }
+  .ss-mtools-grp { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.55; white-space: nowrap; padding: 0 2px 0 6px; }
+  .ss-mtools-scroll .ss-font-picker-button { min-height: 40px; }
+
   /* ---- sticky editor chrome on mobile ---- */
   .ss-work-header { position: sticky !important; top: 0 !important; z-index: 100 !important; background: var(--ss-paper) !important; }
   .ss-mobile-tabs { position: sticky !important; top: 0 !important; z-index: 99 !important; }
