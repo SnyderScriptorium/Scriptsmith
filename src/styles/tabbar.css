@@ -1,0 +1,182 @@
+/* ScriptSmith bottom tab bar — mobile & tablet only (max-width: 1024px).
+   Desktop keeps the existing top navigation; this file changes nothing there.
+   Imported LAST in main.js so it wins the cascade. */
+
+/* ---- desktop default: everything hidden ---- */
+#ss-tabbar, #ss-fab, #ss-more-sheet { display: none; }
+
+@media (max-width: 1024px) {
+  /* ---- kill the desktop 900px floor: this is the big "desktop site" fix ---- */
+  body { min-width: 0; }
+
+  /* ---- reserve room so page content never hides behind the bar ---- */
+  body { padding-bottom: calc(clamp(60px, 8vw, 72px) + env(safe-area-inset-bottom, 0px)); }
+
+  /* ============ bottom tab bar ============ */
+  #ss-tabbar {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 900;
+    background: var(--ss-paper, #fffdf8);
+    border-top: 1px solid var(--ss-border, #cbbba6);
+    box-shadow: 0 -4px 18px rgba(44, 37, 30, .10);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ss-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 56px; /* ≥48px touch target per Material */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 2px;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    color: var(--ss-muted, #756a5e);
+    font-family: inherit;
+    font-size: clamp(10px, 2.6vw, 12px);
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .ss-tab-icon {
+    font-size: clamp(20px, 5.2vw, 24px);
+    line-height: 1;
+  }
+  .ss-tab-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ss-tab.active { color: var(--ss-accent, #4a4037); }
+  .ss-tab.active .ss-tab-icon { transform: scale(1.12); }
+  .ss-tab:active { background: rgba(0, 0, 0, .04); }
+
+  /* ============ floating action button (Library tab only) ============ */
+  #ss-fab {
+    display: none; /* shown via .show, mobile only */
+    position: fixed;
+    z-index: 890;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: calc(clamp(76px, 10vw, 92px) + env(safe-area-inset-bottom, 0px));
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: 0;
+    background: var(--ss-accent, #4a4037);
+    color: #fff;
+    font-size: 30px;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(44, 37, 30, .35);
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #ss-fab.show { display: flex; }
+  #ss-fab:active { transform: scale(.94); }
+
+  /* ============ "More" bottom sheet ============ */
+  #ss-more-sheet {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 950;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  #ss-more-sheet.open { visibility: visible; pointer-events: auto; }
+  #ss-more-sheet .ss-sheet-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(34, 29, 24, .45);
+    opacity: 0;
+    transition: opacity .22s ease;
+  }
+  #ss-more-sheet.open .ss-sheet-backdrop { opacity: 1; }
+  #ss-more-sheet .ss-sheet {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: var(--ss-paper, #fffdf8);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border-top: 1px solid var(--ss-border, #cbbba6);
+    box-shadow: 0 -8px 40px rgba(44, 37, 30, .25);
+    padding: 10px clamp(12px, 4vw, 24px) calc(14px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(105%);
+    transition: transform .26s cubic-bezier(.32, .72, .35, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  #ss-more-sheet.open .ss-sheet { transform: translateY(0); }
+  #ss-more-sheet .ss-sheet button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px; /* ≥48px touch target */
+    padding: 10px 12px;
+    background: none;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--ss-ink, #302b26);
+    font-family: inherit;
+    font-size: clamp(15px, 4vw, 17px);
+    font-weight: 600;
+    text-align: left;
+    touch-action: manipulation;
+  }
+  #ss-more-sheet .ss-sheet button:active { background: rgba(0, 0, 0, .05); }
+  #ss-more-sheet .ss-sheet-cancel {
+    margin-top: 6px;
+    justify-content: center;
+    color: var(--ss-muted, #756a5e);
+    border-top: 1px solid var(--ss-border, #cbbba6);
+    border-radius: 0;
+  }
+
+  /* toasts float above the tab bar; modals must cover the tab bar, not hide under it */
+  .ss-toast { bottom: calc(clamp(76px, 10vw, 92px) + env(safe-area-inset-bottom, 0px)); z-index: 1001; }
+  .ss-modal-backdrop { z-index: 1000; }
+}
+
+/* ---- small phones: tighten up, labels stay readable ---- */
+@media (max-width: 480px) {
+  .ss-tab { min-height: 52px; gap: 2px; padding: 5px 1px; }
+  .ss-tab-icon { font-size: clamp(19px, 5.6vw, 22px); }
+  .ss-tab-label { font-size: clamp(9px, 2.8vw, 11px); }
+}
+
+/* ---- tablets: roomier bar, larger targets ---- */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .ss-tab { min-height: 64px; }
+  .ss-tab-icon { font-size: 26px; }
+  .ss-tab-label { font-size: 13px; }
+  #ss-more-sheet .ss-sheet {
+    left: 50%;
+    right: auto;
+    width: min(480px, calc(100vw - 48px));
+    transform: translate(-50%, 105%);
+    border-radius: 20px;
+    margin-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  #ss-more-sheet.open .ss-sheet { transform: translate(-50%, 0); }
+}
+
+/* ---- desktop: hard guarantee nothing shows ---- */
+@media (min-width: 1025px) {
+  #ss-tabbar, #ss-fab, #ss-more-sheet { display: none !important; }
+}
