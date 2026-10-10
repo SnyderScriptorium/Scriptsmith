@@ -81,6 +81,11 @@ export function isSyncConfigured() {
   return Boolean(url && anonKey);
 }
 
+/** Return the stored sync credentials (for pre-filling a settings UI). */
+export function getSyncConfig() {
+  return readConfig();
+}
+
 function getClient() {
   if (client) return client;
   const { url, anonKey } = readConfig();
