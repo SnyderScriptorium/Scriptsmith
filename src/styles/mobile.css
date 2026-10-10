@@ -73,6 +73,7 @@ h1, h2, h3 { overflow-wrap: break-word; text-wrap: balance; }
   /* ---- hierarchical mobile editor nav ---- */
   /* Hide desktop 9-tab nav on mobile, show hierarchical nav */
   .ss-manuscript-tabs { display: none !important; }
+  .ss-ribbon { display: none !important; }
   .ss-mobile-tabs { display: flex !important; width: 100%; background: var(--ss-paper); border-bottom: 1px solid var(--ss-border); padding: 0; margin: 0; }
   .ss-mobile-tabs button { flex: 1 1 0; min-width: 0; min-height: 48px; padding: 10px 4px; font-size: 0.9rem; font-weight: 600; background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--ss-muted); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ss-mobile-tabs button.active { color: var(--ss-accent); border-bottom-color: var(--ss-accent); }
