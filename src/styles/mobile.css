@@ -84,7 +84,10 @@ h1, h2, h3 { overflow-wrap: break-word; text-wrap: balance; }
   .ss-mobile-subbar button[data-mfmt] { font-weight: bold; min-width: 44px; text-align: center; }
 
   /* ---- wrapped multi-line formatting toolbar (Write tab) ---- */
+  .ss-mtools-wrap { width: 100%; }
+  .ss-mtools-toggle { min-height: 40px; min-width: 40px; padding: 8px 14px; font-size: 0.85rem; font-weight: 700; background: var(--ss-button-bg); border: 1px solid var(--ss-border); border-radius: 8px; color: var(--ss-ink); cursor: pointer; white-space: nowrap; }
   .ss-mtools-scroll { display: flex !important; flex-wrap: wrap !important; align-items: flex-start; gap: 8px; width: 100%; overflow: visible !important; padding: 4px 2px; }
+  .ss-mtools-scroll[hidden] { display: none !important; }
   .ss-mtools-group { display: flex !important; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 6px 4px 0; border-right: 1px solid var(--ss-border); margin-right: 2px; }
   .ss-mtools-group:last-child { border-right: none; margin-right: 0; }
   .ss-mtools-scroll button { min-height: 40px; min-width: 40px; flex: 0 0 auto; }

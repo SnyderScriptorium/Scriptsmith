@@ -94,6 +94,13 @@
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
   overflow: hidden;
 }
+/* The UA [hidden]{display:none} loses to .ss-font-picker-popup{display:flex}
+   (author beats UA). Without this, close() can never visually hide the popup. */
+.ss-font-picker-popup[hidden] { display: none !important; }
+.ss-font-picker-head { display: flex; align-items: stretch; border-bottom: 1px solid var(--ss-border, #c8bbaa); background: rgba(42, 35, 29, 0.05); }
+.ss-font-picker-head .ss-font-picker-preview { flex: 1 1 auto; min-width: 0; border-bottom: none; background: none; }
+.ss-font-picker-close { flex: 0 0 auto; align-self: center; min-width: 40px; min-height: 40px; margin-right: 6px; border: 1px solid var(--ss-border, #c8bbaa); border-radius: 8px; background: var(--ss-button-bg, #fff); color: var(--ss-ink, #292522); font-size: 16px; line-height: 1; cursor: pointer; }
+.ss-font-picker-backdrop { position: fixed; inset: 0; z-index: 1099; background: rgba(20, 15, 10, 0.28); }
 
 .ss-font-picker-preview {
   flex: 0 0 auto;

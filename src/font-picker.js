@@ -99,7 +99,7 @@ export function createFontPicker({ current = 'Georgia', onPick = null } = {}) {
   popup.className = 'ss-font-picker-popup';
   popup.setAttribute('role', 'listbox');
   popup.hidden = true;
-  popup.innerHTML = `<div class="ss-font-picker-preview" aria-hidden="true"></div>
+  popup.innerHTML = `<div class="ss-font-picker-head"><div class="ss-font-picker-preview" aria-hidden="true"></div><button type="button" class="ss-font-picker-close" aria-label="Close font picker">\u2715</button></div>
     <div class="ss-font-picker-list">${Object.entries(FONT_GROUPS).map(([group, fonts]) => `
       <div class="ss-font-picker-group">
         <div class="ss-font-picker-group-title">${escHtml(group)}</div>
@@ -161,11 +161,24 @@ export function createFontPicker({ current = 'Georgia', onPick = null } = {}) {
       popup.style.bottom = `${vh - r.top + 4}px`;
     }
   }
+  // Semi-transparent backdrop behind the popup (mobile tap-to-dismiss).
+  let backdrop = null;
+  function showBackdrop() {
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.className = 'ss-font-picker-backdrop';
+      backdrop.setAttribute('aria-hidden', 'true');
+      backdrop.addEventListener('pointerdown', e => { e.preventDefault(); close(); });
+    }
+    if (!backdrop.isConnected) document.body.appendChild(backdrop);
+  }
+  function hideBackdrop() { if (backdrop && backdrop.isConnected) backdrop.remove(); }
   function open() {
     closeOpenPicker(api);
     if (!popup.isConnected) document.body.appendChild(popup);
     positionPopup();
     popup.hidden = false;
+    showBackdrop();
     root.classList.add('open');
     button.setAttribute('aria-expanded', 'true');
     openPicker = api;
@@ -175,6 +188,7 @@ export function createFontPicker({ current = 'Georgia', onPick = null } = {}) {
   }
   function close() {
     popup.hidden = true;
+    hideBackdrop();
     root.classList.remove('open');
     button.setAttribute('aria-expanded', 'false');
     if (openPicker === api) openPicker = null;
@@ -182,7 +196,10 @@ export function createFontPicker({ current = 'Georgia', onPick = null } = {}) {
   const api = { open, close, setFont, get value() { return value; }, root };
 
   button.addEventListener('click', () => { popup.hidden ? open() : close(); });
+  // Explicit close button — always works even if item taps misbehave.
+  popup.querySelector('.ss-font-picker-close').addEventListener('click', e => { e.stopPropagation(); close(); });
   popup.addEventListener('click', e => {
+    if (e.target.closest('.ss-font-picker-close')) return;
     const item = e.target.closest('.ss-font-picker-item');
     if (!item) return;
     setFont(itemFont(item));
