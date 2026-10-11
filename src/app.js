@@ -284,4 +284,20 @@ function renderPortal(){const chars=records('characters'),worlds=records('locati
   }
   initTabBar();
   maybeShowSignInGate();
+  // Offline-first: when the connection comes back, sync automatically.
+  // Also retry sync periodically while the app is open (every 5 min) so
+  // changes made offline get pushed without the user tapping Sync Now.
+  let syncInFlight=false;
+  async function autoSync(reason){
+    if(syncInFlight)return;
+    if(!navigator.onLine)return;
+    let user=null;
+    try{user=await getUser();}catch(_){return;}
+    if(!user)return;
+    syncInFlight=true;
+    try{await syncNow();}catch(_){}
+    syncInFlight=false;
+  }
+  window.addEventListener('online',()=>autoSync('reconnect'));
+  setInterval(()=>autoSync('interval'),5*60*1000);
 }
