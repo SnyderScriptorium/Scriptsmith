@@ -5,6 +5,8 @@
 --
 -- What it does:
 --   * Creates the `manuscripts` table (one row per manuscript per user).
+--   * Creates the `user_settings` table (one row per user: theme, font,
+--     and other app preferences, synced between the user's devices).
 --   * Turns on Row Level Security and adds policies so a signed-in user can
 --     ONLY read/write/delete their OWN rows. The app's anon key is safe to
 --     ship precisely because of these policies.
@@ -47,4 +49,37 @@ create policy "Users can update their own manuscripts"
 drop policy if exists "Users can delete their own manuscripts" on public.manuscripts;
 create policy "Users can delete their own manuscripts"
   on public.manuscripts for delete
+  using (auth.uid() = user_id);
+
+-- ============================================================================
+-- User settings (one row per user; synced across the user's devices)
+-- ============================================================================
+
+create table if not exists public.user_settings (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  settings jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.user_settings enable row level security;
+
+drop policy if exists "Users can read their own settings" on public.user_settings;
+create policy "Users can read their own settings"
+  on public.user_settings for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their own settings" on public.user_settings;
+create policy "Users can insert their own settings"
+  on public.user_settings for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update their own settings" on public.user_settings;
+create policy "Users can update their own settings"
+  on public.user_settings for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can delete their own settings" on public.user_settings;
+create policy "Users can delete their own settings"
+  on public.user_settings for delete
   using (auth.uid() = user_id);

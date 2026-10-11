@@ -28,6 +28,8 @@
 // - Conflicts are last-write-wins. There is no field-level merge and no
 //   conflict UI yet. Edits made on two devices between syncs: the older
 //   edit is overwritten by the newer one.
+// - Settings sync is heuristic last-write-wins: if settings change on two
+//   devices between syncs, the device that syncs second wins.
 
 import { createClient } from '@supabase/supabase-js';
 import { listLibraryDocuments, saveToLibrary } from './filesystem.js';
@@ -170,7 +172,142 @@ async function requireUser() {
 }
 
 // ---------------------------------------------------------------------------
-// Sync operations
+// Settings sync (theme, theme font, accent color, and other preferences)
+//
+// One row per user in the `user_settings` table. Last-write-wins on
+// updated_at, tracked against the last time THIS device synced, so a device
+// that changed settings uploads while a device that didn't pulls.
+// Limitation: if settings change on two devices between syncs, the device
+// that syncs second wins; there is no field-level merge.
+// ---------------------------------------------------------------------------
+
+const SETTINGS_LS_KEY = 'scriptsmith-settings-v2';
+const LS_SETTINGS_SYNCED_AT = 'scriptsmith-settings-synced-at';
+
+/** Re-apply the theme after a settings download, when the UI module exists. */
+async function applyThemeIfAvailable() {
+  try {
+    // Dynamic import: workspace-options.js statically imports this module,
+    // so a static import back would be circular.
+    const mod = await import('./workspace-options.js');
+    if (mod && typeof mod.applyTheme === 'function') mod.applyTheme();
+  } catch (_) {
+    // Not in an app context (or theme module unavailable) — settings are
+    // still saved locally; they apply on next app start.
+  }
+}
+
+function readLocalSettings() {
+  try {
+    const raw =
+      typeof localStorage !== 'undefined'
+        ? localStorage.getItem(SETTINGS_LS_KEY)
+        : null;
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeLocalSettings(obj) {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    localStorage.setItem(SETTINGS_LS_KEY, JSON.stringify(obj));
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function stampSettingsSynced() {
+  try {
+    if (typeof localStorage !== 'undefined')
+      localStorage.setItem(LS_SETTINGS_SYNCED_AT, String(Date.now()));
+  } catch (_) {}
+}
+
+/** Push this device's settings to Supabase (insert or update). */
+export async function uploadSettings() {
+  const sb = getClient();
+  const user = await requireUser();
+  const local = readLocalSettings();
+  if (!local) return false;
+  const now = new Date().toISOString();
+  const { error } = await sb
+    .from('user_settings')
+    .upsert(
+      { user_id: user.id, settings: local, updated_at: now },
+      { onConflict: 'user_id' }
+    );
+  if (error) throw new Error(`Settings upload failed: ${error.message}`);
+  stampSettingsSynced();
+  return true;
+}
+
+/**
+ * Pull the signed-in user's settings from Supabase, save them locally,
+ * and re-apply the theme. Returns the settings object, or null when the
+ * user has never synced settings.
+ */
+export async function downloadSettings() {
+  const sb = getClient();
+  const user = await requireUser();
+  const { data, error } = await sb
+    .from('user_settings')
+    .select('settings, updated_at')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) throw new Error(`Settings download failed: ${error.message}`);
+  if (!data || !data.settings) return null;
+  writeLocalSettings(data.settings);
+  stampSettingsSynced();
+  await applyThemeIfAvailable();
+  return data.settings;
+}
+
+/**
+ * Two-way settings sync. Heuristic last-write-wins:
+ *  - no remote row          -> upload local settings (if any)
+ *  - remote newer than our last sync -> download + apply
+ *  - otherwise              -> upload local settings (covers local changes)
+ * Returns { uploaded, downloaded }.
+ */
+export async function syncSettings() {
+  const sb = getClient();
+  const user = await requireUser();
+  const out = { uploaded: false, downloaded: false };
+
+  const local = readLocalSettings();
+  const { data, error } = await sb
+    .from('user_settings')
+    .select('settings, updated_at')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  if (error) throw new Error(`Settings sync failed: ${error.message}`);
+
+  let lastSynced = 0;
+  try {
+    lastSynced = Number(localStorage.getItem(LS_SETTINGS_SYNCED_AT) || 0);
+  } catch (_) {}
+  const remoteAt =
+    data && data.updated_at ? new Date(data.updated_at).getTime() : 0;
+
+  if (!data || !data.settings) {
+    if (local && (await uploadSettings())) out.uploaded = true;
+  } else if (remoteAt > lastSynced) {
+    writeLocalSettings(data.settings);
+    stampSettingsSynced();
+    await applyThemeIfAvailable();
+    out.downloaded = true;
+  } else if (local && (await uploadSettings())) {
+    out.uploaded = true;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Manuscript sync operations
 // ---------------------------------------------------------------------------
 
 /** Push one local manuscript to Supabase (insert or update). */
@@ -205,7 +342,10 @@ export async function downloadManuscripts() {
  *  - on both, remote newer -> download (overwrites local copy)
  *  - same timestamp        -> nothing to do
  *
- * Returns { uploaded, downloaded, upToDate, errors }.
+ * App settings (theme, font, preferences) sync too, last-write-wins.
+ *
+ * Returns { uploaded, downloaded, upToDate, settingsUploaded,
+ *           settingsDownloaded, errors }.
  * Individual failures are collected in `errors`, not thrown, so one bad
  * document can't abort the whole sync.
  */
@@ -213,7 +353,7 @@ export async function syncNow() {
   getClient(); // throws early if unconfigured
   await requireUser(); // throws early if signed out
 
-  const result = { uploaded: 0, downloaded: 0, upToDate: 0, errors: [] };
+  const result = { uploaded: 0, downloaded: 0, upToDate: 0, errors: [], settingsUploaded: 0, settingsDownloaded: 0 };
 
   const localDocs = await listLibraryDocuments();
   const remoteDocs = await downloadManuscripts();
@@ -248,6 +388,16 @@ export async function syncNow() {
     } catch (e) {
       result.errors.push({ id: doc.id, phase: 'download', message: e.message });
     }
+  }
+
+  // Settings phase: theme, font, and preferences follow the account too.
+  // Never fatal — a settings failure must not break manuscript sync.
+  try {
+    const s = await syncSettings();
+    if (s.uploaded) result.settingsUploaded++;
+    if (s.downloaded) result.settingsDownloaded++;
+  } catch (e) {
+    result.errors.push({ id: 'settings', phase: 'settings', message: e.message });
   }
 
   return result;
