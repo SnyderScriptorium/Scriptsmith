@@ -51,6 +51,10 @@ create policy "Users can delete their own manuscripts"
   on public.manuscripts for delete
   using (auth.uid() = user_id);
 
+-- Grant table access to the anon/authenticated roles (RLS policies alone
+-- aren't enough — without these, every query gets "permission denied").
+grant select, insert, update, delete on public.manuscripts to anon, authenticated;
+
 -- ============================================================================
 -- User settings (one row per user; synced across the user's devices)
 -- ============================================================================
@@ -83,3 +87,5 @@ drop policy if exists "Users can delete their own settings" on public.user_setti
 create policy "Users can delete their own settings"
   on public.user_settings for delete
   using (auth.uid() = user_id);
+
+grant select, insert, update, delete on public.user_settings to anon, authenticated;
