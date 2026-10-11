@@ -226,14 +226,13 @@ function renderPortal(){const chars=records('characters'),worlds=records('locati
     const signedInHtml=user
       ? `<p>Welcome back.</p><div class="ss-modal-actions" style="justify-content:stretch"><button class="ss-primary" id="ss-gate-continue" style="flex:1">Continue as ${user.email||'you'}</button></div><div style="text-align:center;margin-top:12px"><button class="ss-button" id="ss-gate-signout" style="border:0;background:transparent;text-decoration:underline">Sign out</button></div>`
       : `<p>Sign in to sync your manuscripts and settings across devices.</p><p id="ss-gate-msg" style="min-height:1.2em;font-size:.9em;color:var(--ss-muted)"></p><div class="ss-settings-field"><label>Email<input id="ss-gate-email" type="email" inputmode="email" placeholder="you@example.com" style="width:100%" autocomplete="email"></label></div><div class="ss-settings-field"><label>Password<span style="position:relative;display:block"><input id="ss-gate-pass" type="password" placeholder="Password" style="width:100%;padding-right:2.4em" autocomplete="current-password"><button type="button" id="ss-gate-showpass" aria-label="Show password" style="position:absolute;right:.4em;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:1.1em;cursor:pointer">👁</button></span></label></div><div style="text-align:right;margin-top:-4px"><button class="ss-button" id="ss-gate-forgot" style="border:0;background:transparent;text-decoration:underline;font-size:.85em">Forgot password?</button></div><div class="ss-modal-actions" style="justify-content:stretch;flex-wrap:wrap"><button class="ss-button" id="ss-gate-signup" style="flex:1">Sign Up</button><button class="ss-primary" id="ss-gate-signin" style="flex:1">Sign In</button></div>`;
-    modalRoot().innerHTML=`<div class="ss-modal-backdrop"><div class="ss-modal ss-signin-gate"><h2>ScriptSmith</h2>${signedInHtml}<div style="text-align:center;margin-top:12px"><button class="ss-button" id="ss-gate-skip" style="border:0;background:transparent;text-decoration:underline">Skip for now — use offline</button></div></div></div>`;
+    modalRoot().innerHTML=`<div class="ss-modal-backdrop"><div class="ss-modal ss-signin-gate"><h2>ScriptSmith</h2>${signedInHtml}<p style="font-size:.85em;color:var(--ss-muted);text-align:center;margin-top:12px">Your manuscripts stay on your device and work offline —<br>signing in also syncs them across devices.</p></div></div>`;
     const done=async(label)=>{
       modalRoot().innerHTML='';
       showLibrary();
       if(label)toast(label);
       try{await syncNow();}catch(_){}
     };
-    document.querySelector('#ss-gate-skip').onclick=()=>{modalRoot().innerHTML='';showLibrary();};
     const cont=document.querySelector('#ss-gate-continue');
     if(cont)cont.onclick=()=>done('Syncing…');
     const so=document.querySelector('#ss-gate-signout');
