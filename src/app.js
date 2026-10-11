@@ -2,7 +2,7 @@ import { createDocument, getCurrentDocument, setCurrentDocument, updateDocumentC
 import { saveProject, exportProject, openProject, clearCurrentPath, listLibraryDocuments, loadLibraryDocument, deleteLibraryDocument } from './filesystem.js';
 import { createFontPicker } from './font-picker.js';
 import { portraitForRecord, newPortraitSeed } from './character-visuals.js';
-import { isSyncConfigured, getUser, signUp, signIn, signOut, requestPasswordReset, updatePassword, syncNow } from './sync.js';
+import { isSyncConfigured, getUser, signUp, signIn, signOut, requestPasswordReset, resendConfirmation, updatePassword, syncNow } from './sync.js';
 
 const CATEGORY_KEY = 'scriptsmith-categories-v1';
 const SETTINGS_KEY = 'scriptsmith-settings-v2';
@@ -225,7 +225,7 @@ function renderPortal(){const chars=records('characters'),worlds=records('locati
     try{user=await getUser();}catch(_){user=null;}
     const signedInHtml=user
       ? `<p>Welcome back.</p><div class="ss-modal-actions" style="justify-content:stretch"><button class="ss-primary" id="ss-gate-continue" style="flex:1">Continue as ${user.email||'you'}</button></div><div style="text-align:center;margin-top:12px"><button class="ss-button" id="ss-gate-signout" style="border:0;background:transparent;text-decoration:underline">Sign out</button></div>`
-      : `<p>Sign in to sync your manuscripts and settings across devices.</p><p id="ss-gate-msg" style="min-height:1.2em;font-size:.9em;color:var(--ss-muted)"></p><div class="ss-settings-field"><label>Email<input id="ss-gate-email" type="email" inputmode="email" placeholder="you@example.com" style="width:100%" autocomplete="email"></label></div><div class="ss-settings-field"><label>Password<span style="position:relative;display:block"><input id="ss-gate-pass" type="password" placeholder="Password" style="width:100%;padding-right:2.4em" autocomplete="current-password"><button type="button" id="ss-gate-showpass" aria-label="Show password" style="position:absolute;right:.4em;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:1.1em;cursor:pointer">👁</button></span></label></div><div style="text-align:right;margin-top:-4px"><button class="ss-button" id="ss-gate-forgot" style="border:0;background:transparent;text-decoration:underline;font-size:.85em">Forgot password?</button></div><div class="ss-modal-actions" style="justify-content:stretch;flex-wrap:wrap"><button class="ss-button" id="ss-gate-signup" style="flex:1">Sign Up</button><button class="ss-primary" id="ss-gate-signin" style="flex:1">Sign In</button></div>`;
+      : `<p>Sign in to sync your manuscripts and settings across devices.</p><p id="ss-gate-msg" style="min-height:1.2em;font-size:.9em;color:var(--ss-muted)"></p><div class="ss-settings-field"><label>Email<input id="ss-gate-email" type="email" inputmode="email" placeholder="you@example.com" style="width:100%" autocomplete="email"></label></div><div class="ss-settings-field"><label>Password<span style="position:relative;display:block"><input id="ss-gate-pass" type="password" placeholder="Password" style="width:100%;padding-right:2.4em" autocomplete="current-password"><button type="button" id="ss-gate-showpass" aria-label="Show password" style="position:absolute;right:.4em;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:1.1em;cursor:pointer">👁</button></span></label></div><div style="text-align:right;margin-top:-4px"><button class="ss-button" id="ss-gate-forgot" style="border:0;background:transparent;text-decoration:underline;font-size:.85em">Forgot password?</button><button class="ss-button" id="ss-gate-resend" style="border:0;background:transparent;text-decoration:underline;font-size:.85em">Resend confirmation email</button></div><div class="ss-modal-actions" style="justify-content:stretch;flex-wrap:wrap"><button class="ss-button" id="ss-gate-signup" style="flex:1">Sign Up</button><button class="ss-primary" id="ss-gate-signin" style="flex:1">Sign In</button></div>`;
     modalRoot().innerHTML=`<div class="ss-modal-backdrop"><div class="ss-modal ss-signin-gate"><h2>ScriptSmith</h2>${signedInHtml}<p style="font-size:.85em;color:var(--ss-muted);text-align:center;margin-top:12px">Your manuscripts stay on your device and work offline —<br>signing in also syncs them across devices.</p></div></div>`;
     const done=async(label)=>{
       modalRoot().innerHTML='';
@@ -257,6 +257,15 @@ function renderPortal(){const chars=records('characters'),worlds=records('locati
         await requestPasswordReset(email);
         say('Reset email sent — check your inbox for the link.');
       }catch(e){say(e.message||'Could not send reset email.');}
+    };
+    document.querySelector('#ss-gate-resend').onclick=async()=>{
+      const email=emailIn.value.trim();
+      if(!email){say('Enter your email above first, then tap Resend confirmation email.');return;}
+      say('Resending confirmation email…');
+      try{
+        await resendConfirmation(email);
+        say('Confirmation email sent — check your inbox, then sign in.');
+      }catch(e){say(e.message||'Could not resend confirmation email.');}
     };
     document.querySelector('#ss-gate-signup').onclick=async()=>{
       const pw=passIn.value;

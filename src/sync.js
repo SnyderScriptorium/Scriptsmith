@@ -147,6 +147,17 @@ export async function signOut() {
   if (error) throw new Error(`Sign-out failed: ${error.message}`);
 }
 
+/** Resends the sign-up confirmation email. */
+export async function resendConfirmation(email) {
+  const sb = getClient();
+  const { error } = await sb.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: 'https://snyderscriptorium.com/scriptsmith-confirmed' },
+  });
+  if (error) throw new Error(`Could not resend confirmation: ${error.message}`);
+}
+
 /** Returns the signed-in user object, or null. */
 export async function getUser() {
   const sb = getClient();
