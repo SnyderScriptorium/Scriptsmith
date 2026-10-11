@@ -39,6 +39,18 @@ If access is revoked for non-payment, the user always gets their work back.
   **adds on** to the existing expiry date (it does not reset).
 - Example: 60 days remaining + renewal = 425 days from today.
 
+## Promo codes
+
+- A promo code entered at signup/payment **activates the subscription
+  without requiring payment**.
+- Initial promo code: **`SCRIPTOUT`**
+- Intended for: K_W., her husband, and a small circle of allied writers
+  during beta and beyond.
+- Promo-activated subscriptions follow the same 365-day lifecycle
+  (reminders, grace, lockout rules all apply on renewal unless another
+  promo code or payment is provided).
+- Promo codes should be manageable (add/revoke) without a code deploy.
+
 ## Technical notes (for implementation)
 
 - Needs a `subscriptions` table in Supabase: user_id, paid_until,
