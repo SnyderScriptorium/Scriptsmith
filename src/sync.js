@@ -37,6 +37,12 @@ import { listLibraryDocuments, saveToLibrary } from './filesystem.js';
 const LS_URL_KEY = 'scriptsmith-sync-url';
 const LS_ANON_KEY = 'scriptsmith-sync-anon-key';
 
+// Baked-in Supabase credentials — same backend for every user.
+// The anon key is publishable by design; Row Level Security restricts
+// every query to the signed-in user's own rows.
+const BUILT_IN_URL = 'https://vsziqofzrgjosvglirqh.supabase.co';
+const BUILT_IN_ANON_KEY = '__PASTE_ANON_KEY_HERE__';
+
 let client = null;
 
 // ---------------------------------------------------------------------------
@@ -55,9 +61,14 @@ function readConfig() {
       ? import.meta.env?.VITE_SUPABASE_ANON_KEY
       : '';
   // In-app config (localStorage) wins so keys can be pasted in without a rebuild.
+  // Then baked-in build constants, then .env.
+  const builtInKey =
+    BUILT_IN_ANON_KEY && !BUILT_IN_ANON_KEY.startsWith('__PASTE')
+      ? BUILT_IN_ANON_KEY
+      : '';
   return {
-    url: String(lsUrl || envUrl || '').trim(),
-    anonKey: String(lsKey || envKey || '').trim(),
+    url: String(lsUrl || BUILT_IN_URL || envUrl || '').trim(),
+    anonKey: String(lsKey || builtInKey || envKey || '').trim(),
   };
 }
 
