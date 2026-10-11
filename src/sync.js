@@ -125,7 +125,11 @@ function getClient() {
 
 export async function signUp(email, password) {
   const sb = getClient();
-  const { data, error } = await sb.auth.signUp({ email, password });
+  const { data, error } = await sb.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: 'https://snyderscriptorium.com/scriptsmith-confirmed' },
+  });
   if (error) throw new Error(`Sign-up failed: ${error.message}`);
   return data; // {user, session} — session is null when email confirmation is required
 }
