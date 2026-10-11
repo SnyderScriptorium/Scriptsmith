@@ -3,6 +3,7 @@ import { saveProject, exportProject, openProject, clearCurrentPath, listLibraryD
 import { createFontPicker } from './font-picker.js';
 import { portraitForRecord, newPortraitSeed } from './character-visuals.js';
 import { isSyncConfigured, getUser, signUp, signIn, signOut, requestPasswordReset, resendConfirmation, updatePassword, syncNow } from './sync.js';
+import { checkForUpdate, downloadAndInstall } from './updater.js';
 
 const CATEGORY_KEY = 'scriptsmith-categories-v1';
 const SETTINGS_KEY = 'scriptsmith-settings-v2';
@@ -232,7 +233,31 @@ function renderPortal(){const chars=records('characters'),worlds=records('locati
       showLibrary();
       if(label)toast(label);
       try{await syncNow();}catch(_){}
+      // In-app update check: fire and forget, never blocks startup.
+      checkForUpdate().then(u=>{if(u)showUpdateModal(u);}).catch(()=>{});
     };
+    // Shows once per launch when a newer build is available.
+    function showUpdateModal(update){
+      if(document.querySelector('#ss-update-modal'))return;
+      const wrap=document.createElement('div');
+      wrap.id='ss-update-modal';
+      wrap.innerHTML=`<div class="ss-modal-backdrop"><div class="ss-modal"><h2>Update available</h2><p>A new version of ScriptSmith is ready to install.</p><p id="ss-update-status" style="min-height:1.2em;font-size:.9em;color:var(--ss-muted)"></p><div class="ss-modal-actions"><button class="ss-button" id="ss-update-later">Later</button><button class="ss-primary" id="ss-update-now">Update now</button></div></div></div>`;
+      modalRoot().appendChild(wrap);
+      const status=wrap.querySelector('#ss-update-status');
+      const say=t=>{if(status)status.textContent=t||'';};
+      wrap.querySelector('#ss-update-later').onclick=()=>wrap.remove();
+      wrap.querySelector('#ss-update-now').onclick=async()=>{
+        const btn=wrap.querySelector('#ss-update-now');
+        btn.disabled=true;
+        try{
+          await downloadAndInstall(update.apk_url,say);
+          say('Opening installer…');
+        }catch(e){
+          say(e.message||'Update failed. Please try again later.');
+          btn.disabled=false;
+        }
+      };
+    }
     const cont=document.querySelector('#ss-gate-continue');
     if(cont)cont.onclick=()=>done('Syncing…');
     const so=document.querySelector('#ss-gate-signout');
