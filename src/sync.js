@@ -109,7 +109,13 @@ function getClient() {
         '(VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). See supabase/README.md.'
     );
   }
-  client = createClient(url, anonKey);
+  client = createClient(url, anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: false,
+    },
+  });
   return client;
 }
 
@@ -121,7 +127,7 @@ export async function signUp(email, password) {
   const sb = getClient();
   const { data, error } = await sb.auth.signUp({ email, password });
   if (error) throw new Error(`Sign-up failed: ${error.message}`);
-  return data.user;
+  return data; // {user, session} — session is null when email confirmation is required
 }
 
 export async function signIn(email, password) {

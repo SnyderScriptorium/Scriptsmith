@@ -266,7 +266,13 @@ function renderPortal(){const chars=records('characters'),worlds=records('locati
       try{
         const u=await signUp(emailIn.value.trim(),passIn.value);
         passIn.value='';
-        await done('Signed in as '+((u&&u.email)||emailIn.value||'you')+' — syncing…');
+        // signUp returns {user, session} — if email confirmation is on, there is no session yet
+        const session=u&&u.session;
+        if(session){
+          await done('Signed in as '+((u.user&&u.user.email)||emailIn.value||'you')+' — syncing…');
+        }else{
+          say('Account created! Check your email for a confirmation link, then sign in.');
+        }
       }catch(e){say(e.message||'Sign-up failed.');}
     };
     document.querySelector('#ss-gate-signin').onclick=async()=>{
