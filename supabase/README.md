@@ -21,14 +21,16 @@ You only do this setup **once**. Afterwards the app handles everything.
    Closer = faster syncing.
 5. Click **Create new project** and wait a minute or two while it spins up.
 
-## Step 3 — Create the manuscripts table
+## Step 3 — Create the database tables
 
 1. In the left sidebar, click the **SQL Editor** icon (`</>`).
 2. Click **New query**.
 3. Open the file `schema.sql` (in this same `supabase/` folder), copy the
    **entire contents**, and paste it into the query box.
 4. Click **Run** (or press Ctrl+Enter). You should see "Success. No rows returned."
-5. That's it — the table and all the security rules are now in place.
+5. That's it — both tables (`manuscripts` and `user_settings`) and all the
+   security rules are now in place. If you already ran an older version of
+   this file, just run it again — it's safe to re-run.
 
 ## Step 4 — Copy your API credentials
 
