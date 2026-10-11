@@ -41,7 +41,7 @@ const LS_ANON_KEY = 'scriptsmith-sync-anon-key';
 // The anon key is publishable by design; Row Level Security restricts
 // every query to the signed-in user's own rows.
 const BUILT_IN_URL = 'https://vsziqofzrgjosvglirqh.supabase.co';
-const BUILT_IN_ANON_KEY = '__PASTE_ANON_KEY_HERE__';
+const BUILT_IN_ANON_KEY = 'sb_publishable_wJWMeNCBsBK1MO5TJQR_BQ_CzWdhxBd';
 
 let client = null;
 
