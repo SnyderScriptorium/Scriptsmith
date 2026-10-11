@@ -2,6 +2,7 @@ import { createDocument, getCurrentDocument, setCurrentDocument, updateDocumentC
 import { saveProject, exportProject, openProject, clearCurrentPath, listLibraryDocuments, loadLibraryDocument, deleteLibraryDocument } from './filesystem.js';
 import { createFontPicker } from './font-picker.js';
 import { portraitForRecord, newPortraitSeed } from './character-visuals.js';
+import { isSyncConfigured, getUser, signUp, signIn, syncNow } from './sync.js';
 
 const CATEGORY_KEY = 'scriptsmith-categories-v1';
 const SETTINGS_KEY = 'scriptsmith-settings-v2';
@@ -214,6 +215,48 @@ function renderPortal(){const chars=records('characters'),worlds=records('locati
       setActiveTab(t);
     });
   }
+  // Startup sign-in gate: if Supabase sync is configured but no user is signed
+  // in, show a sign-in modal first. "Skip" goes straight to the library so the
+  // app always works offline. If sync isn't configured at all, no gate.
+  async function maybeShowSignInGate(){
+    let configured=false;
+    try{configured=isSyncConfigured();}catch(_){}
+    if(!configured){showLibrary();return;}
+    let user=null;
+    try{user=await getUser();}catch(_){user=null;}
+    if(user){showLibrary();return;}
+    modalRoot().innerHTML=`<div class="ss-modal-backdrop"><div class="ss-modal ss-signin-gate"><h2>Sign in to ScriptSmith</h2><p>Sign in to sync your manuscripts and settings across devices.</p><p id="ss-gate-msg" style="min-height:1.2em;font-size:.9em;color:var(--ss-muted)"></p><div class="ss-settings-field"><label>Email<input id="ss-gate-email" type="email" inputmode="email" placeholder="you@example.com" style="width:100%" autocomplete="email"></label></div><div class="ss-settings-field"><label>Password<input id="ss-gate-pass" type="password" placeholder="Password" style="width:100%" autocomplete="current-password"></label></div><div class="ss-modal-actions" style="justify-content:stretch;flex-wrap:wrap"><button class="ss-button" id="ss-gate-signup" style="flex:1">Sign Up</button><button class="ss-primary" id="ss-gate-signin" style="flex:1">Sign In</button></div><div style="text-align:center;margin-top:12px"><button class="ss-button" id="ss-gate-skip" style="border:0;background:transparent;text-decoration:underline">Skip for now — use offline</button></div></div></div>`;
+    const msg=document.querySelector('#ss-gate-msg');
+    const emailIn=document.querySelector('#ss-gate-email');
+    const passIn=document.querySelector('#ss-gate-pass');
+    const say=t=>{if(msg)msg.textContent=t||'';};
+    const done=async(label)=>{
+      modalRoot().innerHTML='';
+      showLibrary();
+      if(label)toast(label);
+      try{await syncNow();}catch(_){}
+    };
+    document.querySelector('#ss-gate-skip').onclick=()=>{modalRoot().innerHTML='';showLibrary();};
+    document.querySelector('#ss-gate-signup').onclick=async()=>{
+      say('Creating account…');
+      try{
+        const u=await signUp(emailIn.value.trim(),passIn.value);
+        passIn.value='';
+        if(u&&u.email){say('Account created for '+u.email+'.');}
+        await done('Signed in — syncing…');
+      }catch(e){say(e.message||'Sign-up failed.');}
+    };
+    document.querySelector('#ss-gate-signin').onclick=async()=>{
+      say('Signing in…');
+      try{
+        const u=await signIn(emailIn.value.trim(),passIn.value);
+        passIn.value='';
+        await done('Signed in as '+((u&&u.email)||emailIn.value||'you')+' — syncing…');
+      }catch(e){say(e.message||'Sign-in failed.');}
+    };
+    passIn.addEventListener('keydown',e=>{if(e.key==='Enter')document.querySelector('#ss-gate-signin').click();});
+    setTimeout(()=>{try{emailIn.focus({preventScroll:true});}catch(_){}},300);
+  }
   initTabBar();
-  showLibrary();
+  maybeShowSignInGate();
 }
