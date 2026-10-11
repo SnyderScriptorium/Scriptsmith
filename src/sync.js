@@ -133,6 +133,20 @@ export async function getUser() {
   return data?.user ?? null;
 }
 
+/** Sends a password-reset email. User clicks the link to set a new password. */
+export async function requestPasswordReset(email) {
+  const sb = getClient();
+  const { error } = await sb.auth.resetPasswordForEmail(email);
+  if (error) throw new Error(`Reset failed: ${error.message}`);
+}
+
+/** Changes the password for the currently signed-in user. */
+export async function updatePassword(newPassword) {
+  const sb = getClient();
+  const { error } = await sb.auth.updateUser({ password: newPassword });
+  if (error) throw new Error(`Password change failed: ${error.message}`);
+}
+
 // ---------------------------------------------------------------------------
 // Manuscript mapping (local doc <-> Supabase row)
 // ---------------------------------------------------------------------------
