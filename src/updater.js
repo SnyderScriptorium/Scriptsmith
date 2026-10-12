@@ -8,7 +8,7 @@ import { openPath } from '@tauri-apps/plugin-opener';
 import { appCacheDir, join } from '@tauri-apps/api/path';
 
 // Bump this integer with every release build.
-export const APP_BUILD = 8;
+export const APP_BUILD = 9;
 
 const VERSION_URL = 'https://snyderscriptorium.com/scriptsmith-version.json';
 const APK_FILE = 'scriptsmith-update.apk';
