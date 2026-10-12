@@ -179,6 +179,15 @@ export async function updatePassword(newPassword) {
   if (error) throw new Error(`Password change failed: ${error.message}`);
 }
 
+export async function updateEmail(newEmail) {
+  const sb = getClient();
+  const { error } = await sb.auth.updateUser(
+    { email: newEmail },
+    { emailRedirectTo: 'https://snyderscriptorium.com/scriptsmith-confirmed' }
+  );
+  if (error) throw new Error(`Email change failed: ${error.message}`);
+}
+
 // ---------------------------------------------------------------------------
 // Manuscript mapping (local doc <-> Supabase row)
 // ---------------------------------------------------------------------------
