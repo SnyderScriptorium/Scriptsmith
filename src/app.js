@@ -83,6 +83,52 @@ function renderWriting(){const prefs=metadata().manuscriptPreferences||{},view=d
     activatePage(0);
     pagesEl.querySelectorAll('[contenteditable]').forEach(e=>e.addEventListener('focus',()=>activatePage(Number(e.closest('.ss-page').dataset.page)||0)));
     updateEditorStats();
+    setTimeout(flowPagination,50);
+  }
+  function flowPagination(){
+    const pagesEl=editor();if(!pagesEl)return;
+    const pages=[...pagesEl.querySelectorAll('.ss-page')];
+    for(let i=0;i<pages.length;i++){
+      const content=pages[i].querySelector('.ss-page-content');
+      if(!content)continue;
+      let guard=0;
+      while(content.scrollHeight>content.clientHeight+2&&guard<100){
+        guard++;
+        let next=pages[i+1];
+        if(!next){
+          next=addPage('',pages.length);
+          pages.push(next);
+          next.querySelector('[contenteditable]').addEventListener('focus',()=>activatePage(Number(next.dataset.page)||0));
+        }
+        const nextContent=next.querySelector('.ss-page-content');
+        const lastChild=content.lastElementChild;
+        if(!lastChild)break;
+        // If the last child itself overflows, split its text
+        if(lastChild.scrollHeight>content.clientHeight){
+          const text=lastChild.textContent||'';
+          if(text.length>10){
+            const mid=Math.floor(text.length/2);
+            const keep=document.createElement(lastChild.tagName||'P');
+            keep.textContent=text.slice(0,mid);
+            const move=document.createElement(lastChild.tagName||'P');
+            move.textContent=text.slice(mid);
+            lastChild.replaceWith(keep);
+            nextContent.prepend(move);
+            continue;
+          }
+        }
+        nextContent.prepend(lastChild);
+      }
+    }
+    // Remove trailing empty pages (keep at least one)
+    const allPages=[...pagesEl.querySelectorAll('.ss-page')];
+    for(let i=allPages.length-1;i>0;i--){
+      const c=allPages[i].querySelector('.ss-page-content');
+      if(c&&!c.textContent.trim()&&!c.querySelector('img')){
+        allPages[i].remove();
+      }else break;
+    }
+    updateEditorStats();
   }
   function addPage(html='',index=null){const pagesEl=editor();if(!pagesEl)return;const page=document.createElement('article');page.className='ss-page';page.dataset.page=index??pagesEl.children.length;page.innerHTML=`<div class="ss-paper-header"></div><div class="ss-page-content" contenteditable="true" spellcheck="${readSettings().spellcheck}">${html}</div><div class="ss-paper-footer"></div>`;pagesEl.appendChild(page);return page;}
   function activatePage(i){editor()?.querySelectorAll('.ss-page').forEach((p,n)=>p.classList.toggle('active',n===i));}
