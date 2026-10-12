@@ -168,7 +168,9 @@ export async function getUser() {
 /** Sends a password-reset email. User clicks the link to set a new password. */
 export async function requestPasswordReset(email) {
   const sb = getClient();
-  const { error } = await sb.auth.resetPasswordForEmail(email);
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://snyderscriptorium.com/scriptsmith-reset-password',
+  });
   if (error) throw new Error(`Reset failed: ${error.message}`);
 }
 
