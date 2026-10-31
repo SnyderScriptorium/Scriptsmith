@@ -329,7 +329,11 @@ function ssPaginate(){
     });
     const counter=document.querySelector('#ss-page-count');
     if(counter)counter.textContent=`${pages.length} ${pages.length===1?'page':'pages'}`;
-    if(bookmark&&changed)requestAnimationFrame(()=>ssRestoreBookmark(bookmark));
+    // Restore the caret in the SAME frame as the reflow. The old nested
+    // requestAnimationFrame let keystrokes land between the snapshot and
+    // the restore, yanking the caret back to a stale position (and scrolling
+    // the view to it) while the user kept typing.
+    if(bookmark&&changed)ssRestoreBookmark(bookmark);
   }finally{ssPaginationRunning=false;}
 }
 

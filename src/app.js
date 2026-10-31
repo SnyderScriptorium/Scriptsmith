@@ -78,7 +78,27 @@ function renderWriting(){const prefs=metadata().manuscriptPreferences||{},view=d
     const chunks=source.split(/<div class="scriptsmith-page-break"[^>]*>.*?<\/div>/g);
     chunks.forEach((html,i)=>{
       const page=addPage(html,i);
-      if(i>0)page.dataset.explicitBreak='1';
+      if(i>0){
+        page.dataset.explicitBreak='1';
+        // Breaks loaded from a saved document used to be invisible and
+        // unremovable: buildPages split them out, and underflow refuses to
+        // pull content across an explicit break, so a title page could sit
+        // empty forever with no way to close the gap. Render a clickable
+        // marker OUTSIDE .ss-page-content so pagination never moves it
+        // and syncWriting never serializes it.
+        const marker=document.createElement('div');
+        marker.className='scriptsmith-page-break';
+        marker.contentEditable='false';
+        marker.textContent='Page Break — click to remove';
+        marker.style.cssText='margin:8px 0;padding:7px;border-top:2px dashed #8a8178;border-bottom:2px dashed #8a8178;text-align:center;font-size:12px;color:#675f58;background:#faf7f2;cursor:pointer;';
+        marker.onclick=()=>{
+          page.dataset.explicitBreak='';
+          marker.remove();
+          onEditorInput();
+          page.querySelector('.ss-page-content')?.dispatchEvent(new Event('input',{bubbles:true}));
+        };
+        page.insertBefore(marker,page.querySelector('.ss-page-content'));
+      }
     });
     if(!pagesEl.children.length)addPage('',0);
     activatePage(0);
