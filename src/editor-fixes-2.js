@@ -36,6 +36,67 @@ function ssInstallEditor(editor){
     block.style.textIndent=`${Math.max(0,current+(e.shiftKey?-0.5:0.5))}in`;
     editor.dispatchEvent(new Event('input',{bubbles:true}));
   },true);
+  // Page breaks are document structure, not walls. Backspace at the very
+  // start of a break page deletes the break and merges its content into
+  // the previous page; Delete at the very end of a page pulls the next
+  // break page's content down. Without this, a break loaded from a saved
+  // document could never be removed by ordinary editing, so asking for
+  // a few blank lines always left a whole empty page in the way.
+  editor.addEventListener('keydown',e=>{
+    if(e.key!=='Backspace'&&e.key!=='Delete')return;
+    const selection=window.getSelection();
+    if(!selection?.rangeCount)return;
+    const range=selection.getRangeAt(0);
+    if(!range.collapsed||!editor.contains(range.commonAncestorContainer))return;
+    const page=editor.closest('.ss-page');
+    if(!page)return;
+    const pages=[...document.querySelectorAll('#ss-pages .ss-page')];
+    const index=pages.indexOf(page);
+    const rangeHasMedia=r=>{
+      try{return !!r.cloneContents().querySelector('img,video,table');}catch{return false;}
+    };
+    if(e.key==='Backspace'){
+      if(index<=0||page.dataset.explicitBreak!=='1')return;
+      const before=document.createRange();
+      before.setStart(editor,0);
+      before.setEnd(range.startContainer,range.startOffset);
+      if(before.toString()!==''||rangeHasMedia(before))return;
+      const prev=pages[index-1].querySelector('.ss-page-content');
+      if(!prev)return;
+      e.preventDefault();
+      const firstMoved=editor.firstChild;
+      page.querySelector(':scope > .scriptsmith-page-break')?.remove();
+      page.dataset.explicitBreak='';
+      while(editor.firstChild)prev.appendChild(editor.firstChild);
+      page.remove();
+      const sel=window.getSelection();
+      const r=document.createRange();
+      if(firstMoved&&firstMoved.parentNode===prev){r.setStartBefore(firstMoved);r.collapse(true);}
+      else{r.selectNodeContents(prev);r.collapse(false);}
+      sel.removeAllRanges();
+      sel.addRange(r);
+      prev.focus();
+      prev.dispatchEvent(new Event('input',{bubbles:true}));
+      ssQueuePagination();
+    }else{
+      if(index>=pages.length-1)return;
+      const next=pages[index+1];
+      if(next.dataset.explicitBreak!=='1')return;
+      const after=document.createRange();
+      after.setStart(range.endContainer,range.endOffset);
+      after.setEnd(editor,editor.childNodes.length);
+      if(after.toString()!==''||rangeHasMedia(after))return;
+      const nextContent=next.querySelector('.ss-page-content');
+      if(!nextContent)return;
+      e.preventDefault();
+      next.querySelector(':scope > .scriptsmith-page-break')?.remove();
+      next.dataset.explicitBreak='';
+      while(nextContent.firstChild)editor.appendChild(nextContent.firstChild);
+      next.remove();
+      editor.dispatchEvent(new Event('input',{bubbles:true}));
+      ssQueuePagination();
+    }
+  },true);
   editor.addEventListener('input',()=>{
     editor.dispatchEvent(new CustomEvent('ss-document-input',{bubbles:true}));
     ssQueuePagination();
