@@ -23,8 +23,11 @@
 // - NEVER put the `service_role` key in the app. It bypasses RLS entirely.
 //
 // V1 LIMITATIONS (documented, not bugs):
-// - Deletions do not sync. Deleting a manuscript on one device will not
-//   delete it on the other; the surviving copy will re-upload on next sync.
+// - Deletions sync via local tombstones (see filesystem.js): deleting a
+//   manuscript records its id, sync never re-downloads a tombstoned
+//   manuscript, and the next sync deletes its remote row too. Caveat: if
+//   the same manuscript still lives on another device, that device will
+//   re-upload it until it is deleted there as well.
 // - Conflicts are last-write-wins. There is no field-level merge and no
 //   conflict UI yet. Edits made on two devices between syncs: the older
 //   edit is overwritten by the newer one.
@@ -32,7 +35,7 @@
 //   devices between syncs, the device that syncs second wins.
 
 import { createClient } from '@supabase/supabase-js';
-import { listLibraryDocuments, saveToLibrary } from './filesystem.js';
+import { listLibraryDocuments, saveToLibrary, readDeletedLibraryIds } from './filesystem.js';
 
 const LS_URL_KEY = 'scriptsmith-sync-url';
 const LS_ANON_KEY = 'scriptsmith-sync-anon-key';
@@ -391,6 +394,20 @@ export async function downloadManuscripts() {
   return (data || []).map(toDoc);
 }
 
+/** Delete one manuscript row from Supabase (the signed-in user's own row). */
+export async function deleteRemoteManuscript(id) {
+  const sb = getClient();
+  const user = await requireUser();
+  if (!id) throw new Error('deleteRemoteManuscript: needs an id.');
+  const { error } = await sb
+    .from('manuscripts')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id);
+  if (error) throw new Error(`Remote delete failed: ${error.message}`);
+  return true;
+}
+
 /**
  * Two-way sync. For every manuscript known locally or remotely:
  *  - only local            -> upload
@@ -433,9 +450,26 @@ export async function syncNow() {
 
   // Pull phase: remote-only docs, plus remotes that are newer than local.
   // saveToLibrary migrates the document shape on the way in.
+  // Tombstoned docs (deleted locally) are never re-downloaded: the remote
+  // row is deleted instead, so a delete stays deleted. If the remote
+  // delete fails (offline), the tombstone still blocks the download, and
+  // the next sync retries the remote cleanup.
+  const tombstones = readDeletedLibraryIds();
+  const isTombstoned = (doc) =>
+    tombstones.has(String(doc.id)) ||
+    (doc.libraryId && tombstones.has(String(doc.libraryId)));
   for (const doc of remoteDocs) {
     const local = localById.get(doc.id);
     try {
+      if (isTombstoned(doc)) {
+        try {
+          await deleteRemoteManuscript(doc.id);
+          result.deletedRemote = (result.deletedRemote || 0) + 1;
+        } catch (e) {
+          result.errors.push({ id: doc.id, phase: 'delete-remote', message: e.message });
+        }
+        continue;
+      }
       if (!local || newerThan(doc.updatedAt, local.updatedAt)) {
         await saveToLibrary(doc);
         result.downloaded++;

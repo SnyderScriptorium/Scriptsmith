@@ -13,6 +13,34 @@ function localLibrary(){try{return JSON.parse(localStorage.getItem(LOCAL_LIBRARY
 function writeLocalLibrary(record){const all=localLibrary();all[record.libraryId]=record;localStorage.setItem(LOCAL_LIBRARY_KEY,JSON.stringify(all));}
 function readLocalLibrary(){const all=localLibrary();return Object.values(all).map(migrateDocument);}
 
+// Delete tombstones: ids of manuscripts the user deleted locally.
+// Sync must never re-download a tombstoned manuscript — otherwise a
+// delete only lasts until the next sync, and the file "comes back".
+// (Supabase is the source of the resurrection: delete was local-only and
+// syncNow() re-downloads every remote-only doc.)
+const DELETED_LIBRARY_KEY = 'scriptsmith-deleted-manuscripts';
+export function readDeletedLibraryIds(){
+  try{
+    const raw=localStorage.getItem(DELETED_LIBRARY_KEY);
+    const arr=raw?JSON.parse(raw):[];
+    return new Set(Array.isArray(arr)?arr.filter(x=>typeof x==='string'&&x):[]);
+  }catch(_){ return new Set(); }
+}
+function writeDeletedLibraryIds(set){
+  try{ localStorage.setItem(DELETED_LIBRARY_KEY,JSON.stringify([...set])); }catch(_){}
+}
+export function recordLibraryDeletion(id){
+  if(!id)return;
+  const set=readDeletedLibraryIds();
+  set.add(String(id));
+  writeDeletedLibraryIds(set);
+}
+export function clearLibraryDeletion(id){
+  if(!id)return;
+  const set=readDeletedLibraryIds();
+  if(set.delete(String(id)))writeDeletedLibraryIds(set);
+}
+
 export function getCurrentPath() { return currentPath; }
 export async function saveProject(document, saveAs = false) {
   document = migrateDocument(document);
@@ -38,6 +66,10 @@ export async function saveToLibrary(document) {
   document=migrateDocument(document);
   const id=safeName(document.id||document.title||'Untitled Document').replace(/\s+/g,'-').toLowerCase();
   const record={...document,libraryId:id,libraryUpdatedAt:new Date().toISOString()};
+  // A manuscript saved again is alive again: lift any delete tombstone
+  // for it, so a future doc with this id can sync normally.
+  clearLibraryDeletion(id);
+  if(document.id)clearLibraryDeletion(document.id);
   try { await mkdir(LIBRARY_DIR,{baseDir:BaseDirectory.AppData,recursive:true}); await writeTextFile(`${LIBRARY_DIR}/${id}.json`,JSON.stringify(record,null,2),{baseDir:BaseDirectory.AppData}); }
   catch(error){ writeLocalLibrary(record); }
 }
@@ -48,7 +80,15 @@ export async function deleteLibraryDocument(documentOrId){
   try { const path=`${LIBRARY_DIR}/${id}.json`; if(await exists(path,{baseDir:BaseDirectory.AppData})){await remove(path,{baseDir:BaseDirectory.AppData});removed=true;} } catch(_){}
   try { const all=localLibrary(); if(Object.prototype.hasOwnProperty.call(all,id)){delete all[id];localStorage.setItem(LOCAL_LIBRARY_KEY,JSON.stringify(all));removed=true;} } catch(_){}
   if(currentPath && String(currentPath).includes(`${id}.json`))currentPath=null;
-  if(removed && typeof window!=='undefined')window.dispatchEvent(new CustomEvent('scriptsmith:library-changed'));
+  if(removed){
+    // Tombstone the deletion so the next sync cannot resurrect it.
+    // Tombstone both keys: the library file name (libraryId) and the
+    // document's own id can differ, and the remote row is keyed by id
+    // while the downloaded copy also carries libraryId.
+    recordLibraryDeletion(id);
+    if(typeof documentOrId==='object' && documentOrId?.id && String(documentOrId.id)!==String(id))recordLibraryDeletion(documentOrId.id);
+    if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent('scriptsmith:library-changed'));
+  }
   return removed;
 }
 export async function listLibraryDocuments() {
