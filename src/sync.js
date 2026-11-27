@@ -225,6 +225,34 @@ function newerThan(a, b) {
   return ta > tb;
 }
 
+/**
+ * Count the words in a manuscript, across every place text can live:
+ * the top-level content, the chapters array, the metadata chapters, and
+ * the notes. A document with no words anywhere is empty.
+ */
+function documentWordCount(doc) {
+  if (!doc || typeof doc !== 'object') return 0;
+  const words = (text) =>
+    String(text || '').trim() ? String(text).trim().split(/\s+/).length : 0;
+  let total = words(doc.content);
+  const countChapters = (list) => {
+    if (!Array.isArray(list)) return;
+    for (const c of list) {
+      if (!c) continue;
+      total += words(typeof c === 'string' ? c : c.content);
+      total += words(c.notes);
+    }
+  };
+  countChapters(doc.chapters);
+  countChapters(doc.metadata?.chapters);
+  if (Array.isArray(doc.notes)) {
+    for (const n of doc.notes) {
+      total += words(typeof n === 'string' ? n : n?.content || n?.text || '');
+    }
+  }
+  return total;
+}
+
 async function requireUser() {
   const user = await getUser();
   if (!user) throw new Error('Not signed in. Sign in before syncing.');
@@ -414,12 +442,14 @@ export async function deleteRemoteManuscript(id) {
  *  - only remote           -> download (saved to the local library)
  *  - on both, local newer  -> upload
  *  - on both, remote newer -> download (overwrites local copy)
+ *  - on both, remote newer but remote is EMPTY and local has words
+ *      -> keep local, upload it back up, warn (never wipe real work)
  *  - same timestamp        -> nothing to do
  *
  * App settings (theme, font, preferences) sync too, last-write-wins.
  *
- * Returns { uploaded, downloaded, upToDate, settingsUploaded,
- *           settingsDownloaded, errors }.
+ * Returns { uploaded, downloaded, upToDate, keptLocal, warnings,
+ *           settingsUploaded, settingsDownloaded, errors }.
  * Individual failures are collected in `errors`, not thrown, so one bad
  * document can't abort the whole sync.
  */
@@ -427,7 +457,7 @@ export async function syncNow() {
   getClient(); // throws early if unconfigured
   await requireUser(); // throws early if signed out
 
-  const result = { uploaded: 0, downloaded: 0, upToDate: 0, errors: [], settingsUploaded: 0, settingsDownloaded: 0 };
+  const result = { uploaded: 0, downloaded: 0, upToDate: 0, keptLocal: 0, warnings: [], errors: [], settingsUploaded: 0, settingsDownloaded: 0 };
 
   const localDocs = await listLibraryDocuments();
   const remoteDocs = await downloadManuscripts();
@@ -471,6 +501,30 @@ export async function syncNow() {
         continue;
       }
       if (!local || newerThan(doc.updatedAt, local.updatedAt)) {
+        // Never let an empty remote copy wipe out real local work. If the
+        // server's copy is empty but the local copy has words, the empty
+        // remote is treated as a bad/stale copy, not a newer one: keep the
+        // local text, push it back up so the server heals, and warn.
+        if (
+          local &&
+          documentWordCount(doc) === 0 &&
+          documentWordCount(local) > 0
+        ) {
+          try {
+            await uploadManuscript(local);
+          } catch (uploadErr) {
+            result.errors.push({
+              id: doc.id,
+              phase: 'upload',
+              message: `Kept local copy of "${local.title || 'Untitled'}" (remote was empty), but re-upload failed: ${uploadErr.message}`,
+            });
+          }
+          result.keptLocal++;
+          result.warnings.push(
+            `Kept your local copy of "${local.title || 'Untitled'}" — the copy on the server was empty, so it was not allowed to replace your work.`
+          );
+          continue;
+        }
         await saveToLibrary(doc);
         result.downloaded++;
       } else {
